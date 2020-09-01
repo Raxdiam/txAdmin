@@ -2,6 +2,7 @@
 const modulename = 'FXRunner';
 const { spawn } = require('child_process');
 const path = require('path');
+const rimraf = require("rimraf");
 const os = require('os');
 const sleep = require('util').promisify((a, f) => setTimeout(f, a));
 const { parseArgsStringToArgv } = require('string-argv');
@@ -304,6 +305,20 @@ module.exports = class FXRunner {
             if(GlobalData.verbose) dir(error);
             this.fxChild = null;
             return false;
+        }
+    }
+
+    async clearCache() {
+        try {
+            let cachePath = path.join(this.config.serverDataPath, "cache");
+            rimraf.sync(cachePath);
+            if (fs.existsSync(cachePath)) {
+                return "The folder still exists for some reason ¯\_(ツ)_/¯";
+            } else {
+                return null;
+            }
+        } catch (err) {
+            return err;
         }
     }
 

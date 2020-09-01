@@ -26,7 +26,9 @@
                 <button onclick="controlAction('restart')" class="btn btn-outline-{{it.perms.controlsClass}} btn-lg mx-auto m-2"
                     type="button" id="ctrl-restart" {{it.perms.controls}}>RESTART</button> &nbsp;
                 <button onclick="controlAction('stop')" class="btn btn-outline-{{it.perms.controlsClass}} btn-lg mx-auto m-2"
-                    type="button" id="ctrl-stop" {{it.perms.controls}}>STOP</button>
+                    type="button" id="ctrl-stop" {{it.perms.controls}}>STOP</button> &nbsp;
+                <button onclick="controlAction('clear_cache')" class="btn btn-outline-{{it.perms.controlsClass}} btn-lg mx-auto m-2"
+                    type="button" id="ctrl-clear-cache" {{it.perms.controls}}>CLEAR CACHE</button>
             </div>
         </div>
 
@@ -130,7 +132,8 @@
 <script>
     //============================================== Controls (start/restart/stop)
     function controlAction(action) {
-        if (action !== 'start' && !window.confirm('Are you sure you want to ' + action + ' the server?')) {
+        let actionText = action == 'clear_cache' ? 'clear the server cache?' : action + ' the server?'
+        if (action !== 'start' && !window.confirm('Are you sure you want to ' + actionText)) {
             return;
         }
         var notify = $.notify({ message: '<p class="text-center">Executing Command...</p>' }, {});

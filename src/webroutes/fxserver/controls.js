@@ -55,6 +55,21 @@ module.exports = async function FXServerControls(ctx) {
         }else{
             return ctx.send({type: 'success', message: 'Starting server...'});
         }
+    
+    }else if(action == 'clear_cache'){
+        try {
+            if (globals.fxRunner.fxChild !== null){
+                return ctx.send({type: 'danger', message: 'The server is currently running. Clearing the cahce now could cause issues.'})
+            }
+            let clearMsg = await globals.fxRunner.clearCache();
+            if (clearMsg !== null) {
+                return ctx.send({type: 'danger', message: 'Could not clear cache: ' + clearMsg});
+            } else {
+                return ctx.send({type: 'success', message: 'Server cache cleared successfully!'});
+            }
+        } catch (err) {
+            return ctx.send({type: 'danger', message: 'Could not clear cache: ' + err});
+        }
 
     }else{
         logWarn(`Unknown control action '${action}'.`);
