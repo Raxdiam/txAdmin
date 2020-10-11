@@ -53,6 +53,18 @@ module.exports = async function ProviderCallback(ctx) {
                 `Please Update/Synchronize your VPS clock.`,
                 `Failed to login because this host's time is wrong. Please make sure to synchronize it with the internet.`
             );
+        }else if(error.code === 'ETIMEDOUT'){
+            return returnJustMessage(
+                ctx,
+                `Connection to FiveM servers timed out:`,
+                `Please try again or login using your existing username and backup password.`
+            );
+        }else if(error.message.startsWith('state mismatch')){
+            return returnJustMessage(
+                ctx,
+                `Invalid Browser Session.`,
+                `You may have restarted txAdmin right before entering this page, or copied the link to another browser. Please try again.`
+            );
         }else{
             return returnJustMessage(ctx, `Code Exchange error:`, error.message);
         }

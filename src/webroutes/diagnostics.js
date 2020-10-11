@@ -244,13 +244,20 @@ async function gettxAdminData(){
     }
 
     const controllerConfigs = globals.playerController.config;
+    const httpCounter = globals.databus.httpCounter;
     return {
+        //Stats
         uptime: humanizeDuration(process.uptime()*1000, humanizeOptions),
         cfxUrl: (GlobalData.cfxUrl)? `https://${GlobalData.cfxUrl}/` : '--',
         banlistEnabled: controllerConfigs.onJoinCheckBan.toString(),
         whitelistEnabled: controllerConfigs.onJoinCheckWhitelist.toString(),
         fullCrashes: globals.monitor.globalCounters.fullCrashes,
         partialCrashes: globals.monitor.globalCounters.partialCrashes,
+        httpCounterLog: httpCounter.log.join(', ') || '--',
+        httpCounterMax: httpCounter.max || '--',
+        hbFD3Fails: globals.databus.heartBeatStats.fd3Failed,
+        hbHTTPFails: globals.databus.heartBeatStats.httpFailed,
+        //Settings
         timeout: globals.monitor.config.timeout,
         cooldown: globals.monitor.config.cooldown,
         schedule: globals.monitor.config.restarterSchedule.join(', ') || '--',

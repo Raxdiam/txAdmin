@@ -1,32 +1,45 @@
-## TODO v2
-> v2.6.1
-- [x] update packages
-- [x] discord bot: set new api url
-- [x] reset /auth url after message or error
-- [x] discord bot: fixed /help spam on reconnection
-- [x] updated dutch, german, danish and czech languages
-- [x] added option to disable in game restart warning chat messages (thanks @is-sam)
-- [x] check why scheduled restarts are not kicking players (no issue found, still replaced `txaKickAll` eith `quit`)
-- [x] use the new fd3 stream (added on 2427, ask ferrum before dropping support for older fxserver)
-- [x] fix login page centralization on mobile screens
-- [x] add placeholders to discord bot settings tab
-- [x] update onesync setting values to reflect fxserver's change
-- [x] if clean install and on windows, open the listening URL on the browser
-> v2.7.0
-- [x] fix player manager settigns page not saving
-- [x] fix squirrelly filters not working on v8.0.4
-> v2.7.1
-- [x] increase default cooldown to 90s and limit the monitor.timeout option
-- [x] improve some text messages
-- [x] added open graph to the login page (thanks @PLOKMJNB)
-- [x] improved live console page with server restart button and visual command history (thanks @Zeemahh) 
-- [x] added custom ban times option (thanks @Zeemahh) 
-- [x] update packages
-- [ ] send heartbeat via FD3 (maybe both?)
-- [ ] send log via FD3
-- [ ] add http requests/minute counter to the diagnostics page
-- [ ] check ban/wl checking logic to make sure its resilient against unexpected identifiers
-- [ ] xxxx
+## TODO v3
+- [ ] xxxxx
+- [ ] xxxxx
+
+`{user.id}` Welcome to the party, {user}! Please read #tutorial-txadmin🔥 
+
+### Setup Stepper:
+1. Welcome
+2. Server Name
+3. Deployment import type:
+    - Common Template
+    - URL Template
+    - Local Server Data
+
+    4. Select Template (cards)
+    5. Show data location
+
+    4. Import Remote Template (URL input)
+    5. Show data location
+
+    4. Local Server Data
+    5. Server CFG File
+
+6. Finish
+    - save configs
+    - if local:
+        - start server
+        - redirect to live console
+    - if template
+        - redirect to deployer
+
+
+setup não faz download
+vai pra página do deployer que é um stepper
+1. cfg file, será salvo como base.cfg
+2. progress, baixar tudo
+3. botão start
+vai pro live console
+e quando terminar só vai mostrar um cfg file pr ousuário configurar algumas coisas
+
+
+
 
 TODO: Bot commands (in dev order):
 /addwl <wl req id>
@@ -43,11 +56,8 @@ TODO: Bot commands (in dev order):
 /removewl <mention>
 
 > Soon™ (hopefully the next update)
+- [ ] send log via FD3
 - [ ] replace `clone` with `lodash/clonedeep` and check the places where I'm doing `Object.assign()` for shallow clones
-- [ ] break player page into `Players` and `Player Access`
-        - `Player Access` will only contain the whitelist and band ids cards
-        - `Players` will have a central search and will show players and actions at the same time
-- [ ] check everything done for xss
 - [ ] apply the new action log html to the modal
 - [ ] add `<fivem://connect/xxxxx>` to `/status` by getting `web_baseUrl` maybe from the heartbeat
 - [ ] add ban server-side ban cache (last 500 bans?), updated on every ban change 
@@ -78,10 +88,10 @@ TODO: Bot commands (in dev order):
 ```bash
 # run
 cd /e/FiveM/builds
-nodemon --watch "2972/citizen/system_resources/monitor/src/*" --exec "2972/FXServer.exe +set txAdmin1337 IKnowWhatImDoing +set txAdminVerbose true +set txAdminFakePlayerlist yesplz"
+nodemon --watch "3004/citizen/system_resources/monitor/src/*" --exec "3004/FXServer.exe +set txAdmin1337 IKnowWhatImDoing +set txAdminVerbose true +set txAdminFakePlayerlist yesplz"
 
 # build
-cd /e/FiveM/builds/2972/citizen/system_resources/monitor
+cd /e/FiveM/builds/3004/citizen/system_resources/monitor
 rm -rf dist
 npm run build
 
