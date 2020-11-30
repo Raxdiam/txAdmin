@@ -26,9 +26,16 @@ exports.cfgEditor = {
     save: require('./cfgEditor/save'),
 }
 
+exports.deployer = {
+    stepper: require('./deployer/stepper'),
+    status: require('./deployer/status'),
+    actions: require('./deployer/actions'),
+}
+
 exports.settings = {
     get: require('./settings/get'),
     save: require('./settings/save'),
+    masterActions: require('./settings/masterActions'), //FIXME: maybe this should be outside the settings page?
 }
 
 exports.setup = {

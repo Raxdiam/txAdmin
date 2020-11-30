@@ -86,9 +86,12 @@ module.exports = async function ProviderCallback(ctx) {
         const admin = globals.authenticator.getAdminByProviderUID(userInfo.name);
         if(!admin){
             ctx.session.auth = {};
-            const message = `This account is not an admin.`;
             if(GlobalData.verbose) logWarn(message);
-            return returnJustMessage(ctx, message);
+            return returnJustMessage(
+                ctx,
+                `The account '${userInfo.name}' is not an admin.`, 
+                `This CitizenFX username is not assigned to any registered account. You can also try to login using your username and backup password.`
+            );
         }
 
         //Setting session
@@ -98,6 +101,8 @@ module.exports = async function ProviderCallback(ctx) {
         //TODO: refresh the provider data on the admins file
 
         log(`Admin ${admin.name} logged in from ${ctx.ip}`);
+        globals.databus.txStatsData.loginOrigins[ctx.txVars.hostType]++;
+        globals.databus.txStatsData.loginMethods.citizenfx++;
         return ctx.response.redirect('/');
     } catch (error) {
         ctx.session.auth = {};

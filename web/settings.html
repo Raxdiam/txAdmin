@@ -139,10 +139,11 @@
                             </label>
                             <div class="col-sm-9">
                                 <input type="text" class="form-control" id="frmFXServer-commandLine" value="{{it.fxserver.commandLine|undef}}"
-                                    placeholder="+set onesync_population false" {{it.readOnly|isDisabled}}>
+                                    placeholder="+exec private.cfg" {{it.readOnly|isDisabled}}>
                                 <span class="form-text text-muted">
                                     Additional command-line arguments to pass to the FXServer instance. <br>
-                                    For example, you can add <code>+set</code> and <code>+exec</code> commands.
+                                    For example, you can add <code>+set</code> and <code>+exec</code> commands. <br>
+                                    <b>Note:</b> These commands can be set inside the <code>server.cfg</code> as well.
                                 </span>
                             </div>
                         </div>
@@ -163,7 +164,7 @@
                         </div>
 
                         <div class="form-group row">
-                            <label for="frmFXServer-autostart" class="col-sm-3 col-form-label">Autostart</label>
+                            <label class="col-sm-3 col-form-label">Autostart</label>
                             <div class="col-sm-9">
                                 <label class="c-switch c-switch-label c-switch-pill c-switch-success fix-pill-form">
                                     <input class="c-switch-input" type="checkbox" id="frmFXServer-autostart"
@@ -177,7 +178,7 @@
                         </div>
 
                         <div class="form-group row">
-                            <label for="frmFXServer-quiet" class="col-sm-3 col-form-label">Quiet</label>
+                            <label class="col-sm-3 col-form-label">Quiet</label>
                             <div class="col-sm-9">
                                 <label class="c-switch c-switch-label c-switch-pill c-switch-success fix-pill-form">
                                     <input class="c-switch-input" type="checkbox" id="frmFXServer-quiet"
@@ -202,7 +203,7 @@
                     <!-- Player Manager Tab -->
                     <div class="tab-pane fade {{it.activeTab=='playerManager'|isActive|tShow}}" id="nav-playerManager" role="tabpanel" aria-labelledby="nav-playerManager-tab">
                         <div class="form-group row">
-                            <label for="frmPlayerManager-onJoinCheckBan" class="col-sm-3 col-form-label">
+                            <label class="col-sm-3 col-form-label">
                                 Enable Banlist
                             </label>
                             <div class="col-sm-9">
@@ -219,7 +220,7 @@
                         </div>
 
                         <div class="form-group row">
-                            <label for="frmPlayerManager-onJoinCheckWhitelist" class="col-sm-3 col-form-label">
+                            <label class="col-sm-3 col-form-label">
                                 Enable Whitelist
                             </label>
                             <div class="col-sm-9">
@@ -270,8 +271,8 @@
                         </div>
 
                         <div class="form-group row">
-                            <label for="frmPlayerManager-wipePendingWLOnStart" class="col-sm-3 col-form-label">
-                                Wipe Whitelist <br>
+                            <label class="col-sm-3 col-form-label">
+                                Wipe Pending Whitelist <br>
                                 On txAdmin Start
                             </label>
                             <div class="col-sm-9">
@@ -313,7 +314,7 @@
                         </div>
 
                         <div class="form-group row">
-                            <label for="frmMonitor-chatMessages" class="col-sm-3 col-form-label">
+                            <label class="col-sm-3 col-form-label">
                                 Disable Chat Warnings
                             </label>
                             <div class="col-sm-9">
@@ -339,7 +340,7 @@
                     <!-- Discord Tab -->
                     <div class="tab-pane fade {{it.activeTab=='discord'|isActive|tShow}}" id="nav-discord" role="tabpanel" aria-labelledby="nav-discord-tab">
                         <div class="form-group row">
-                            <label for="frmDiscord-enabled" class="col-sm-3 col-form-label">Enable Bot</label>
+                            <label class="col-sm-3 col-form-label">Enable Bot</label>
                             <div class="col-sm-9">
                                 <label class="c-switch c-switch-label c-switch-pill c-switch-success fix-pill-form">
                                     <input class="c-switch-input" type="checkbox" id="frmDiscord-enabled"
@@ -434,6 +435,35 @@
 </div>
 
 
+{{@if(it.adminIsMaster)}}
+    <div class="row justify-content-md-center">
+        <div class="col-md-7 mw-col8">
+            <div class="card border-danger">
+                <div class="card-header text-center">
+                    <h5 class="d-inline">Danger Zone</h5>
+                </div>
+                <div class="card-body">
+                    <!-- reset fxserver -->
+                    <div class="row text-center">
+                        <div class="col-lg-9 text-lg-left mb-2">
+                            <strong>Reset FXServer settings and return to Setup</strong> <br>
+                            In the FXServer tab you can change the server data path, but if you want to use
+                            the Deployer again, you will need to use this option. <br>
+                            None of your files or databases will be deleted by doing that.
+                        </div>
+                        <div class="col-lg-3 text-lg-right">
+                            <button class="btn btn-sm btn-outline-danger" type="button" 
+                                onclick="dangerZoneActions('reset');">Reset Settings</button>
+                        </div>
+                    </div>
+                    <!-- <hr class="m-1"> -->
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+{{/if}}
+
 {{@include("footer", it)/}}
 
 
@@ -446,6 +476,37 @@
             Your timezone: <b>${browserTimezone}</b> <br>
             Make sure to adjust the times to match your expectations.`;
         $('#frmMonitor-timezoneAlert').html(msg);
+    }
+
+    //============================================== Danger Zone
+    function dangerZoneActions(action){
+        var notify = $.notify({ message: '<p class="text-center">Executing...</p>' }, {});
+        if(!window.confirm(`Are you sure you want to Reset FXServer Settings?`)){
+            return;
+        }
+
+        $.ajax({
+            type: "POST",
+            url: `/settings/masterActions/${action}`,
+            timeout: timeoutMedium,
+            data: {},
+            dataType: 'json',
+            success: function (data) {
+                if(action == 'reset' && data.success == true){
+                    window.location = '/setup';
+                    return;
+                }else{
+                    notify.update('progress', 0);
+                    notify.update('type', data.type);
+                    notify.update('message', data.message);
+                }
+            },
+            error: function (xmlhttprequest, textstatus, message) {
+                notify.update('progress', 0);
+                notify.update('type', 'danger');
+                notify.update('message', message);
+            }
+        });
     }
 
 

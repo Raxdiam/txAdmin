@@ -26,6 +26,8 @@ module.exports = class webConsole {
 
 
     //================================================================
+    //NOTE: when using namespaces, call next(); at the end
+    // handleConnection(socket, next)
     handleConnection(socket){
         try {
             log(`Connected: ${socket.session.auth.username} from ${getIP(socket)}`, 'SocketIO');
@@ -110,9 +112,9 @@ module.exports = class webConsole {
         }
         
         //Executing command
-        log(`Executing ` + chalk.inverse(' ' + msg + ' '), 'SocketIO');
-        globals.fxRunner.srvCmd(msg);
+        log(`${socket.session.auth.username} executing ` + chalk.inverse(' ' + msg + ' '), 'SocketIO');
         globals.logger.append(`[${getIP(socket)}][${socket.session.auth.username}] ${msg}`);
+        globals.fxRunner.srvCmd(msg);
     }
 
 } //Fim webConsole()

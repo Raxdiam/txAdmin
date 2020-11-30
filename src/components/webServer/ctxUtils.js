@@ -51,6 +51,9 @@ sqrl.filters.define("unnull", (x)=>{
 sqrl.filters.define("escapeBackTick", (x)=>{
     return x.replace(/`/, '\\`');
 });
+sqrl.filters.define("base64", (x)=>{
+    return Buffer.from(x).toString('base64');
+});
 
 //================================================================
 /**
@@ -58,12 +61,14 @@ sqrl.filters.define("escapeBackTick", (x)=>{
  * @param {string} view
  * @param {string} data
  */
-async function renderMasterView(view, reqSess, data){
+async function renderMasterView(view, reqSess, data, txVars){
     if(isUndefined(data)) data = {};
+    data.uiTheme = (txVars.darkMode)? 'theme--dark' : '';
     data.headerTitle = (!isUndefined(data.headerTitle))? `${data.headerTitle} - txAdmin` : 'txAdmin';
     data.txAdminVersion = GlobalData.txAdminVersion;
     data.txAdminOutdated = (now() > GlobalData.txAdminVersionBestBy);
     data.fxServerVersion = GlobalData.fxServerVersion;
+    data.adminIsMaster = (reqSess && reqSess.auth && reqSess.auth.username && reqSess.auth.master === true);
     data.adminUsername = (reqSess && reqSess.auth && reqSess.auth.username)? reqSess.auth.username : 'unknown user';
     data.profilePicture = (reqSess && reqSess.auth && reqSess.auth.picture)? reqSess.auth.picture : 'img/default_avatar.png';
     data.isTempPassword = (reqSess && reqSess.auth && reqSess.auth.isTempPassword);
@@ -81,7 +86,13 @@ async function renderMasterView(view, reqSess, data){
         sqrl.templates.define("footer", sqrl.compile(rawFooter));
         out = sqrl.render(rawView, data);
     } catch (error) {
-        out = getRenderErrorText(view, error, data);
+        if(error.code == 'ENOENT'){
+            out = `<pre>\n`;
+            out += `The '${view}' page file was not found.\n`;
+            out += `You probably deleted the 'citizen/system_resources/monitor/web/' folder or the folders above it.\n`;
+        }else{
+            out = getRenderErrorText(view, error, data);
+        }
     }
 
     return out;
@@ -93,8 +104,9 @@ async function renderMasterView(view, reqSess, data){
  * Renders the login page.
  * @param {string} message
  */
-async function renderLoginView(data){
+async function renderLoginView(data, txVars){
     if(isUndefined(data)) data = {};
+    data.uiTheme = (txVars.darkMode)? 'theme--dark' : '';
     data.isMatrix = (Math.random() <= 0.05);
     data.ascii = helpers.txAdminASCII();
     data.message = data.message || '';
@@ -108,10 +120,16 @@ async function renderLoginView(data){
 
     let out;
     try {
-        let rawView = await fs.readFile(getWebViewPath(`basic/login`), 'utf8');
+        const rawView = await fs.readFile(getWebViewPath(`basic/login`), 'utf8');
         out = sqrl.render(rawView, data);
     } catch (error) {
-        out = getRenderErrorText('Login', error, data);
+        if(error.code == 'ENOENT'){
+            out = `<pre>\n`;
+            out += `The login page file was not found.\n`;
+            out += `You probably deleted the 'citizen/system_resources/monitor/web/basic/login.html' file or the folders above it.\n`;
+        }else{
+            out = getRenderErrorText('Login', error, data);
+        }
     }
 
     return out;
@@ -125,8 +143,9 @@ async function renderLoginView(data){
  * @param {string} view
  * @param {string} data
  */
-async function renderSoloView(view, data){
+async function renderSoloView(view, data, txVars){
     if(isUndefined(data)) data = {};
+    data.uiTheme = (txVars.darkMode)? 'theme--dark' : '';
     let out;
     try {
         let rawView = await fs.readFile(getWebViewPath(view), 'utf8');
@@ -139,16 +158,26 @@ async function renderSoloView(view, data){
 }
 
 
-
 //================================================================
 /**
- * Append data to the log file
- * FIXME: edit consistency of this function and apply to all endpoints
+ * Logs a command to the console and the action logger
  * @param {object} ctx
  * @param {string} data
  */
-function appendLog(ctx, data){
-    log(`Executing ` + chalk.inverse(' ' + data + ' '));
+function logCommand(ctx, data){
+    log(`${ctx.session.auth.username} executing: ` + chalk.inverse(' ' + data + ' '));
+    globals.logger.append(`[${ctx.ip}][${ctx.session.auth.username}] ${data}`);
+}
+
+
+//================================================================
+/**
+ * Logs an action to the console and the action logger
+ * @param {object} ctx
+ * @param {string} data
+ */
+function logAction(ctx, data){
+    log(`[${ctx.session.auth.username}] ${data}`);
     globals.logger.append(`[${ctx.ip}][${ctx.session.auth.username}] ${data}`);
 }
 
@@ -163,6 +192,13 @@ function appendLog(ctx, data){
  */
 function checkPermission(ctx, perm, fromCtx, printWarn = true){
     try {
+        //For master permission
+        if(perm === 'master' && ctx.session.auth.master !== true){
+            if(GlobalData.verbose && printWarn) logWarn(`[${ctx.ip}][${ctx.session.auth.username}] Permission '${perm}' denied.`, fromCtx);
+            return false;
+        }
+        
+        //For all other permissions
         if(
             ctx.session.auth.master === true ||
             ctx.session.auth.permissions.includes('all_permissions') ||
@@ -173,6 +209,7 @@ function checkPermission(ctx, perm, fromCtx, printWarn = true){
             if(GlobalData.verbose && printWarn) logWarn(`[${ctx.ip}][${ctx.session.auth.username}] Permission '${perm}' denied.`, fromCtx);
             return false;
         }
+        
     } catch (error) {
         if(GlobalData.verbose && typeof fromCtx === 'string') logWarn(`Error validating permission '${perm}' denied.`, fromCtx);
         return false;
@@ -183,17 +220,40 @@ function checkPermission(ctx, perm, fromCtx, printWarn = true){
 //================================================================
 //================================================================
 module.exports = async function WebCtxUtils(ctx, next){
+    //Prepare variables
+    ctx.txVars = {
+        darkMode: (ctx.cookies.get('txAdmin-darkMode') === 'true')
+    };
+    const host = ctx.request.host || 'none';
+    if(host.startsWith('127.0.0.1') || host.startsWith('localhost')){
+        ctx.txVars.hostType = 'localhost';
+    }else if(host.includes('users.cfx.re')){
+        ctx.txVars.hostType = 'cfxre';
+    }else if(/^\d+[\d.:]+\d+$/.test(host)){
+        ctx.txVars.hostType = 'ip';
+    }else{
+        ctx.txVars.hostType = 'other';
+    }
+
+    //Functions
     ctx.send = (data) => { ctx.body = data; };
     ctx.utils = {};
     ctx.utils.render = async (view, viewData) => {
+        //Usage stats
+        if(!globals.databus.txStatsData.pageViews[view]){
+            globals.databus.txStatsData.pageViews[view] = 1;
+        }else{
+            globals.databus.txStatsData.pageViews[view]++;
+        }
+
         //TODO: fix this atrocity
         let soloViews = ['adminManager-editModal', 'basic/404'];
         if(view == 'login'){
-            ctx.body = await renderLoginView(viewData);
+            ctx.body = await renderLoginView(viewData, ctx.txVars);
         }else if(soloViews.includes(view)){
-            ctx.body = await renderSoloView(view, viewData);
+            ctx.body = await renderSoloView(view, viewData, ctx.txVars);
         }else{
-            ctx.body = await renderMasterView(view, ctx.session, viewData);
+            ctx.body = await renderMasterView(view, ctx.session, viewData, ctx.txVars);
         }
         ctx.type = 'text/html';
     }
@@ -206,8 +266,11 @@ module.exports = async function WebCtxUtils(ctx, next){
         };
     }
 
-    ctx.utils.appendLog = async (data) => {
-        return appendLog(ctx, data);
+    ctx.utils.logAction = async (data) => {
+        return logAction(ctx, data);
+    }
+    ctx.utils.logCommand = async (data) => {
+        return logCommand(ctx, data);
     }
     ctx.utils.checkPermission = (perm, fromCtx, printWarn) => {
         return checkPermission(ctx, perm, fromCtx, printWarn);

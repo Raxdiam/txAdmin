@@ -1,59 +1,30 @@
 ## TODO v3
-- [ ] xxxxx
-- [ ] xxxxx
-
-`{user.id}` Welcome to the party, {user}! Please read #tutorial-txadmin🔥 
-
-### Setup Stepper:
-1. Welcome
-2. Server Name
-3. Deployment import type:
-    - Common Template
-    - URL Template
-    - Local Server Data
-
-    4. Select Template (cards)
-    5. Show data location
-
-    4. Import Remote Template (URL input)
-    5. Show data location
-
-    4. Local Server Data
-    5. Server CFG File
-
-6. Finish
-    - save configs
-    - if local:
-        - start server
-        - redirect to live console
-    - if template
-        - redirect to deployer
+- [x] deployer: add download_github action
+- [x] clean this file
+- [ ] improve setup page common template incompatibility behavior and set $engine to 2
+- [ ] xxxxxxx
 
 
-setup não faz download
-vai pra página do deployer que é um stepper
-1. cfg file, será salvo como base.cfg
-2. progress, baixar tudo
-3. botão start
-vai pro live console
-e quando terminar só vai mostrar um cfg file pr ousuário configurar algumas coisas
+> Hopefully now:
+- [ ] make playerController.writePending prioritized (low 5s, medium 30s, high 60s)
+- [ ] create `admin.useroptions` for dark mode, welcome modals and such
+- [ ] IF deploy fails, add a `_DEPLOY_FAILED_DO_NOT_EDIT` file to deploy path
+- [ ] add disabled input with the username on the pagina que salva a senha
+- [ ] remove the ForceFXServerPort config and do either via `server.cfg` comment, or execute `endpoint_add_tcp "127.0.0.1:random"`
+- [ ] improve terminal onboarding? Nem que seja só um pouquinho...
+- [ ] merge some PRs
+- [ ] add discord group whitelist (whitelist switch becomes a select box that will enable guildID and roleID)
+- [ ] persistent discord status message that is set up by `!setmessage`:
+        - this will trigger a big status message to be sent in that channel
+        - this message id can be stored in the config file
+- [ ] Upgrade packages:
+        - check if `got` patch was published - https://github.com/sindresorhus/got/pull/1491
+        - try to upgrade `webpack`
+        - see if the `open` library was fixed
+        - try to upgrade `dateformat`
+        - attempt to use `discord.js` v12
+- [ ] add stats enc?
 
-
-
-
-TODO: Bot commands (in dev order):
-/addwl <wl req id>
-/addwl <license>
-
-/kick <mention>
-/log <mention> - shows the last 5 log entries for an discord identifier (make it clear its only looking for the ID)
-/ban <mention> <time> <reason>
-/unban <ban-id>
-
-/info - shows your info like join date and play time
-/info <mention> - shows someone else's info
-/addwl <mention>
-/removewl <mention>
 
 > Soon™ (hopefully the next update)
 - [ ] send log via FD3
@@ -77,10 +48,26 @@ TODO: Bot commands (in dev order):
 - [ ] rename playerController to playerManager?
 - [ ] make heartbeats go through FD3?
 
+
+## Bot Commands:
+DONE:
+/addwl <wl req id>
+/addwl <license>
+
+TODO: Bot commands (in dev order):
+/kick <mention>
+/log <mention> - shows the last 5 log entries for an discord identifier (make it clear its only looking for the ID)
+/ban <mention> <time> <reason>
+/unban <ban-id>
+
+/info - shows your info like join date and play time
+/info <mention> - shows someone else's info
+/addwl <mention>
+/removewl <mention>
+
 ## "in the roadmap"
 - [ ] Check config management libraries (specially 'convict' by Mozilla and nconf)
-- [ ] revisit the issue with server restarting too fast (before close) and the the bind failing, causing restart loop. Almost all cases were windows server 2012.
-- [ ] xxxxxx
+
 
 =======================================
 
@@ -88,10 +75,10 @@ TODO: Bot commands (in dev order):
 ```bash
 # run
 cd /e/FiveM/builds
-nodemon --watch "3004/citizen/system_resources/monitor/src/*" --exec "3004/FXServer.exe +set txAdmin1337 IKnowWhatImDoing +set txAdminVerbose true +set txAdminFakePlayerlist yesplz"
+nodemon --watch "3247/citizen/system_resources/monitor/src/*" --exec "3247/FXServer.exe +set txAdmin1337 IKnowWhatImDoing +set txAdminVerbose truex +set txAdminFakePlayerlist yesplzx"
 
 # build
-cd /e/FiveM/builds/3004/citizen/system_resources/monitor
+cd /e/FiveM/builds/3247/citizen/system_resources/monitor
 rm -rf dist
 npm run build
 
@@ -102,19 +89,33 @@ npm-upgrade
 con_miniconChannels script:monitor*
 ```
 
-### Links + random stuff
-https://api.github.com/repos/tabarra/txAdmin/releases/latest
-https://www.science.co.il/language/Locale-codes.php
+=======================================
+
+## Links + Random Stuff
+
+### CoreUI Stuff + Things I use
+https://simplelineicons.github.io
+https://coreui.io/demo/3.1.0/#icons/coreui-icons-free.html
+https://coreui.io/demo/3.0.0/#colors.html
+https://coreui.io/docs/content/typography/
+
 https://www.npmjs.com/package/humanize-duration
-https://www.npmjs.com/package/dateformat
-https://www.npmjs.com/package/dateformat-light
-https://date-fns.org/v2.0.1/docs/formatDistance
+https://kinark.github.io/Materialize-stepper/
 
+
+### Reference stuff
+https://www.science.co.il/language/Locale-codes.php
+
+
+### Log Stuff:
+https://www.npmjs.com/package/rotating-file-stream
+https://www.npmjs.com/package/file-stream-rotator
+https://www.npmjs.com/package/simple-node-logger
+https://www.npmjs.com/package/infinite-scroll
+
+
+### "Look into it"
 https://www.reddit.com/r/javascript/comments/91a3tp/why_is_there_no_small_sane_nodejs_tool_for/
-
-DIV transition: https://tympanus.net/Tutorials/OriginalHoverEffects/index9.html
-Colors: https://coolors.co/3c4b64-3c4b64-3a4860-1e252d-252e38
-CSS Animated: https://daneden.github.io/animate.css/
 
 Interesting shit, could be used to give like vMenu admin powers to txAdmin admins:
 https://github.com/citizenfx/fivem/commit/fd3fae946163e8af472b7f739aed6f29eae8105f
@@ -122,12 +123,20 @@ https://github.com/citizenfx/fivem/commit/fd3fae946163e8af472b7f739aed6f29eae810
 Grafana query for the `/perf/` endpoint data: 
 `histogram_quantile(0.95, sum(rate(tickTime_bucket[5m])) by (le))`
 
-### CoreUI Stuff
-https://simplelineicons.github.io
-https://coreui.io/demo/3.1.0/#icons/coreui-icons-free.html
-https://coreui.io/demo/3.0.0/#colors.html
-https://coreui.io/docs/content/typography/
+"State bag" support for C#
+https://github.com/citizenfx/fivem/pull/516
+https://github.com/citizenfx/fivem/pull/539
 
+
+### server deployer original idea
+https://discordapp.com/channels/192358910387159041/450373719974477835/701336723589955654
+
+### the ace permissions editor thing
+https://discordapp.com/channels/192358910387159041/450373719974477835/724266730024861717
+
+
+
+=======================================
 
 ### Global vs Individual Modules
 - Global
@@ -157,53 +166,3 @@ https://coreui.io/docs/content/typography/
     - log
     - cfg editor
 ...and maybe more, but now I'm going to sleep
-
-
-
-Questões:
-- É possível tirar o webserver pra fora do txAdmin?
-    - Teria que tirar o verbose pra fora
-    - Criar um metodo pra setar rotas full + atachar socket.io
-    - Puxar o Authenticator pra fora
-- É possível mudar as rotas depois?
-    - Sim
-- É possível Puxar o autenticator pra fora?
-    - Sim
-- É possível só iniciar o txAdmin depois?
-    - Sim
-- Isso vai deixar o código muito zuado?
-- Vai valer a pena?
-
-
-
-### base clonning idea
-Context: https://discordapp.com/channels/192358910387159041/450373719974477835/701336723589955654
-Recipie example:
-```yaml
-tasks:
-  - clone_repo:
-      url: https://github.com/citizenfx/cfx-server-data.git
-      path: .
-  - clone_resource:
-      url: https://github.com/meow64bit/uberadmin.git
-      resourceDir: uberadmin
-  - download_archive:
-      url: https://github.com/wtf/wtfwtf/releases/v1.2.3/resource.zip
-      resourceDir: wtfwtf
-      stripPath: wtfwtf/
-  - download_file:
-      url: https://docs.fivem.net/blah/server.cfg
-      path: server.cfg
-  - replace_file:
-      path: server.cfg
-      pattern: 's/wtf/ftw/g'
-  - append_file:
-      path: server.cfg
-      data: 
-         start wtfwtf
-         start uberadmin
-```
-
-
-### the ace permissions editor thing
-https://discordapp.com/channels/192358910387159041/450373719974477835/724266730024861717

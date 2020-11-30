@@ -71,13 +71,13 @@
 
         <!-- Card Chart-->
         <div class="card text-white bg-info" style="min-height: 160px;">
-            <div class="card-body pt-2 pb-0">
+            <div class="card-body pt-2 pb-0" style="background-color:transparent">
                 <div class="text-value">Players</div>
                 <div>last 24h</div>
             </div>
             {{@if(it.chartData === false)}}
             <div class="text-center mb-4">
-                <h3 class="text-muted">Not enough data, yet...</h3>
+                <h3 class="text-light">Not enough data, yet...</h3>
             </div>
             {{#else}}
             <div class="c-chart-wrapper mx-3" style="height:120px; margin-top: -50px;">
@@ -96,7 +96,7 @@
         </div>
 
         <!-- Card Info -->
-        <div class="card card-accent-primary" style="height:251px;">
+        <div class="card card-accent-info" style="height:251px;">
             <div class="card-header font-weight-bold">Status Info:</div>
             <div class="card-body" id="status-card">
                 Loading...
@@ -248,10 +248,8 @@
                 backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--info'),
                 borderColor: 'rgba(255,255,255,0.55)',
                 fill: false,
-                //NOTE: breaking multiple lines because squirrelly is not respecting LF as line endings.
-                //intentionally 'blank' line
-                data: JSON.parse(`{{it.chartData|escapeBackTick|safe}}`)
-                //intentionally 'blank' line
+                //NOTE: this is hacky af, but whatever
+                data: JSON.parse(atob(`{{it.chartData|base64}}`))
             }]
         },
         options: {

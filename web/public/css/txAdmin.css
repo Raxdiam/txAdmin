@@ -78,6 +78,7 @@ option:disabled {
 .consoleMark-ok {background-color: #a7ffae;}
 mark {background-color: #ffeaa7;}
 
+
 /* Playerlist */
 @media (min-width: 1199.98px) {
     .playerlist{
@@ -192,6 +193,34 @@ mark {background-color: #ffeaa7;}
     margin-bottom: 2px !important;
 }
 
+
+/* HR Separator */
+.hrsep {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    border: 0;
+    color: #b1afaf;
+}
+.hrsep-small {
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+.hrsep::before, .hrsep::after {
+    content: '';
+    flex: 1;
+    border-top: 1px solid #e6e6e6;
+}
+.hrsep::before {
+    margin-right: .25em;
+}
+.hrsep::after {
+    margin-left: .25em;
+}
+
+
 /* Spinner */
 .txSpinner,
 .txSpinner:before,
@@ -264,8 +293,13 @@ mark {background-color: #ffeaa7;}
 }
 
 /* Necessary for the scrollbar  */
-#mainbody{
+#mainbody {
     /* 56+50 = 106 +4 */
-    /* position: relative;
-    height: calc(100vh - 110px); */
+    position: relative;
+    height: calc(100vh - 110px);
+}
+
+.thin-scroll {
+    overflow-x: hidden;
+    overflow-y: scroll;
 }
