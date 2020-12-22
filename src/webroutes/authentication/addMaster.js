@@ -91,7 +91,7 @@ async function handlePin(ctx) {
 async function handleCallback(ctx) {
     //Sanity check
     if(ctx.method != 'GET'){
-        return ctx.utils.error(400, 'Invalid Request - missing parameters');
+        return ctx.utils.error(400, 'Invalid Request');
     }
 
     //Exchange code for access token
@@ -186,9 +186,22 @@ async function handleSave(ctx) {
         );
     }
 
+    //Getting identifier
+    let identifier;
+    try {
+        const res = /\/user\/(\d{4,8})/.exec(ctx.session.tmpAddMasterUserInfo.nameid);
+        identifier = `fivem:${res[1]}`;
+    } catch (error) {
+        return returnJustMessage(
+            ctx,
+            `Invalid nameid identifier.`,
+            `Could not extract the user identifier from the URL below. Please report this to the txAdmin dev team.\n${ctx.session.tmpAddMasterUserInfo.nameid.toString()}`
+        );
+    }
+
     //Creating admins file
     try {
-        await globals.authenticator.createAdminsFile(ctx.session.tmpAddMasterUserInfo.name, ctx.session.tmpAddMasterUserInfo, password);
+        await globals.authenticator.createAdminsFile(ctx.session.tmpAddMasterUserInfo.name, identifier, ctx.session.tmpAddMasterUserInfo, password);
     } catch (error) {
         return returnJustMessage(
             ctx,

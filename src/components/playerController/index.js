@@ -1,9 +1,10 @@
 //Requires
 const modulename = 'PlayerController';
-const humanizeDuration = require('humanize-duration'); //FIXME: remove, this controller is not the right place for interface stuff
 const low = require('lowdb');
 const FileAsync = require('lowdb/adapters/FileAsync');
 const { customAlphabet } = require('nanoid');
+const humanizeDuration = require('humanize-duration'); //FIXME: remove, this controller is not the right place for interface stuff
+const xss = require('../../extras/xss')(); //FIXME: same as above
 const { dir, log, logOk, logWarn, logError } = require('../../extras/console')(modulename);
 
 //Helpers
@@ -63,7 +64,7 @@ module.exports = class PlayerController {
         if(
             process.env.APP_ENV !== 'webpack' && 
             GetConvar('txAdminFakePlayerlist', 'false').trim() === 'yesplz'
-        ) {
+        ){
             const PlayerlistGenerator = require('./playerlistGenerator.js');
             this.playerlistGenerator = new PlayerlistGenerator();
         }
@@ -81,12 +82,12 @@ module.exports = class PlayerController {
             await this.processActive();
 
             try {
-                let timeStart = new Date();
+                const timeStart = new Date();
                 if(this.writePending){
                     await this.dbo.write();
                     this.writePending = false;
-                    let timeElapsed = new Date() - timeStart;
-                    if(GlobalData.verbose) logOk(`DB file saved, took ${timeElapsed}ms.`); //DEBUG
+                    const timeElapsed = new Date() - timeStart;
+                    if(GlobalData.verbose) logOk(`DB file saved, took ${timeElapsed}ms.`);
                 }else{
                     // if(GlobalData.verbose) logOk('Nothing to write to DB file');
                 }
@@ -118,7 +119,7 @@ module.exports = class PlayerController {
      * Start lowdb instance and set defaults
      */
     async setupDatabase(){
-        let dbPath = `${globals.info.serverProfilePath}/data/playersDB.json`;
+        const dbPath = `${globals.info.serverProfilePath}/data/playersDB.json`;
         try {
             let adapterAsync;
             if(process.env.APP_ENV == 'webpack'){
@@ -130,7 +131,7 @@ module.exports = class PlayerController {
             }else{
                 adapterAsync = new FileAsync(dbPath);
             }
-            let dbo = await low(adapterAsync);
+            const dbo = await low(adapterAsync);
             await dbo.defaults({
                 version: currentDatabaseVersion,
                 players: [],
@@ -218,7 +219,7 @@ module.exports = class PlayerController {
                 if(p.isTmp && sessionTime >= this.config.minSessionTime){
                     if(p.license == '3333333333333333333333deadbeef0000nosave') return; //DEBUG
 
-                    this.writePending = true;
+                    this.writePending = true; //low
                     p.isTmp = false;
                     p.playTime = Math.round(sessionTime/60);
                     p.notes = {
@@ -241,7 +242,7 @@ module.exports = class PlayerController {
                     
                 //If its time to update this player's play time
                 }else if(!p.isTmp && checkMinuteElapsed(sessionTime)){
-                    this.writePending = true;
+                    this.writePending = true; //low
                     p.playTime += 1; 
                     await this.dbo.get("players")
                         .find({license: p.license})
@@ -324,6 +325,15 @@ module.exports = class PlayerController {
             return {allow: true, reason: 'checks disabled'};
         }
 
+        //DEBUG: save join log
+        const toLog = {
+            ts: Date.now(),
+            playerName, 
+            idArray,
+        }
+        globals.databus.joinCheckHistory.push(toLog);
+        if(globals.databus.joinCheckHistory.length > 25) globals.databus.joinCheckHistory.shift();
+
         //Sanity checks
         if(typeof playerName !== 'string') throw new Error('playerName should be an string.');
         if(!Array.isArray(idArray)) throw new Error('Identifiers should be an array.');
@@ -349,21 +359,21 @@ module.exports = class PlayerController {
                 const ban = hist.find((a) => a.type == 'ban');
                 if(ban){
                     let msg;
+                    const tOptions = {
+                        id: ban.id,
+                        reason: xss(ban.reason),
+                        author: xss(ban.author),
+                    }
                     if(ban.expiration){
                         const humanizeOptions = {
                             language: globals.translator.t('$meta.humanizer_language'),
                             round: true,
                             units: ['d', 'h'],
                         }
-                        const expiration = humanizeDuration((ban.expiration - ts)*1050, humanizeOptions);
-                        msg = `You have been banned from this server.\n`;
-                        msg += `Your ban will expire in: ${expiration}.\n`;
-                        msg += `Ban ID: ${ban.id}.\n`;
-                        msg += `Ban Reason: ${ban.reason}.`;
+                        tOptions.expiration = humanizeDuration((ban.expiration - ts)*1000, humanizeOptions);
+                        msg = globals.translator.t('ban_messages.drop_temporary', tOptions);
                     }else{
-                        msg = `You have been permanently banned from this server.\n`;
-                        msg += `Ban ID: ${ban.id}.\n`;
-                        msg += `Ban Reason: ${ban.reason}.`;
+                        msg = globals.translator.t('ban_messages.drop_permanent', tOptions);
                     }
                     
                     return {allow: false, reason: msg};
@@ -395,7 +405,7 @@ module.exports = class PlayerController {
                         }
                         await this.dbo.get('pendingWL').push(toDB).value();
                     }
-                    this.writePending = true;
+                    this.writePending = true; //medium
 
                     //Clean rejection message
                     const xssRejectMessage = require('../../extras/xss')({
@@ -436,14 +446,14 @@ module.exports = class PlayerController {
         if(!validActions.includes(type)) throw new Error('Invalid action type.');
         if(typeof author !== 'string' || !author.length) throw new Error('Invalid author.');
         if(reason !== null && (typeof reason !== 'string' || !reason.length)) throw new Error('Invalid reason.');
-        if(expiration !== false && (typeof expiration !== 'number' || expiration < timestamp)) throw new Error('Invalid expiration.');
+        if(expiration !== false && (typeof expiration !== 'number')) throw new Error('Invalid expiration.');
         if(playerName !== false && (typeof playerName !== 'string' || !playerName.length)) throw new Error('Invalid playerName.');
 
         //Processes target reference
         let identifiers;
         if(Array.isArray(reference)){
             if(!reference.length) throw new Error('You must send at least one identifier');
-            let invalids = reference.filter((id)=>{
+            const invalids = reference.filter((id)=>{
                 return (typeof id !== 'string') || !Object.values(GlobalData.validIdentifiers).some(vf => vf.test(id));
             });
             if(invalids.length){
@@ -452,7 +462,7 @@ module.exports = class PlayerController {
                 identifiers = reference;
             }
         }else if(typeof reference == 'number'){
-            let player = this.activePlayers.find((p) => p.id === reference);
+            const player = this.activePlayers.find((p) => p.id === reference);
             if(!player) throw new Error('Player disconnected.');
             if(!player.identifiers.length) throw new Error('Player has no identifiers.'); //sanity check
             identifiers = player.identifiers;
@@ -462,12 +472,12 @@ module.exports = class PlayerController {
         }
 
         //Saves it to the database
-        let actionPrefix = (type == 'warn')? 'a' : type[0];
-        let actionID = actionPrefix.toUpperCase() 
+        const actionPrefix = (type == 'warn')? 'a' : type[0];
+        const actionID = actionPrefix.toUpperCase() 
             + customAlphabet(GlobalData.noLookAlikesAlphabet, 3)() 
             + '-' 
             + customAlphabet(GlobalData.noLookAlikesAlphabet, 4)();
-        let toDB = {
+        const toDB = {
             id: actionID,
             type,
             author,
@@ -485,7 +495,7 @@ module.exports = class PlayerController {
             await this.dbo.get('actions')
                 .push(toDB)
                 .value();
-            this.writePending = true;
+            this.writePending = true; //high
         } catch (error) {
             let msg = `Failed to register event to database with message: ${error.message}`;
             logError(msg);
@@ -511,7 +521,7 @@ module.exports = class PlayerController {
         if(typeof author !== 'string' || !author.length) throw new Error('Invalid author.');
         if(allowedTypes !== true && !Array.isArray(allowedTypes)) throw new Error('Invalid allowedTypes.');
         try {
-            let action = await this.dbo.get("actions")
+            const action = await this.dbo.get("actions")
                             .find({id: action_id})
                             .value();
             if(action){
@@ -523,13 +533,13 @@ module.exports = class PlayerController {
                     timestamp: now(),
                     author
                 }
-                this.writePending = true;
+                this.writePending = true; //high
                 return null;
             }else{
                 return 'action not found';
             }
         } catch (error) {
-            let msg = `Failed to revoke action with message: ${error.message}`;
+            const msg = `Failed to revoke action with message: ${error.message}`;
             logError(msg);
             if(GlobalData.verbose) dir(error);
             throw new Error(msg)
@@ -561,11 +571,11 @@ module.exports = class PlayerController {
         if(/[0-9A-Fa-f]{40}/.test(reference)){
             pendingFilter = {license: reference};
             saveReference = [`license:${reference}`];
-            let pending = await this.dbo.get("pendingWL").find(pendingFilter).value();
+            const pending = await this.dbo.get("pendingWL").find(pendingFilter).value();
             if(pending) playerName = pending.name;
         }else if(GlobalData.regexWhitelistReqID.test(reference)){
             pendingFilter = {id: reference};
-            let pending = await this.dbo.get("pendingWL").find(pendingFilter).value();
+            const pending = await this.dbo.get("pendingWL").find(pendingFilter).value();
             if(!pending) throw new Error('Pending ID not found in database');
             saveReference = [`license:${pending.license}`];
             playerName = pending.name;
@@ -574,9 +584,9 @@ module.exports = class PlayerController {
         }
 
         //Register whitelist
-        let actionID = await this.registerAction(saveReference, 'whitelist', author, null, false, playerName);
+        const actionID = await this.registerAction(saveReference, 'whitelist', author, null, false, playerName);
         if(!actionID) throw new Error('Failed to whitelist player');
-        this.writePending = true;
+        this.writePending = true; //high
 
         //Remove from the pending list
         if(playerName){
@@ -783,7 +793,7 @@ module.exports = class PlayerController {
 
             //Committing disconnected players data
             //NOTE: I'm only assigning the notes because that's currently the only thing that can change between saves.
-            if(disconnectedPlayers.length) this.writePending = true;
+            if(disconnectedPlayers.length) this.writePending = true; //low
             disconnectedPlayers.forEach(async (p) => {
                 try {
                     await this.dbo.get("players")

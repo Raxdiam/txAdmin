@@ -1,13 +1,17 @@
 //Requires
 const modulename = 'WebServer:DeployerActions';
 const fs = require('fs-extra');
-const slash = require('slash');
 const path = require('path');
+const cloneDeep = require('lodash/cloneDeep');
+const slash = require('slash');
 const { dir, log, logOk, logWarn, logError } = require('../../extras/console')(modulename);
 const helpers = require('../../extras/helpers');
 
 //Helper functions
 const isUndefined = (x) => { return (typeof x === 'undefined') };
+
+//FIXME: temporary fix for the yarn issue requiring fxchild.stdin writes
+let yarnInputFix, yarnInputFixCounter;
 
 
 /**
@@ -32,8 +36,11 @@ module.exports = async function DeployerActions(ctx) {
     }
 
     //Delegate to the specific action functions
-    if(action == 'run'){
-        return await handleRunRecipe(ctx);
+    if(action == 'confirmRecipe'){
+        return await handleConfirmRecipe(ctx);
+
+    }else if(action == 'setVariables'){
+        return await handleSetVariables(ctx);
 
     }else if(action == 'commit'){
         return await handleSaveConfig(ctx);
@@ -55,7 +62,7 @@ module.exports = async function DeployerActions(ctx) {
  * Handle submition of user-edited recipe (record to deployer, starts the process)
  * @param {object} ctx
  */
-async function handleRunRecipe(ctx) {
+async function handleConfirmRecipe(ctx) {
     //Sanity check
     if(isUndefined(ctx.request.body.recipe)){
         return ctx.utils.error(400, 'Invalid Request - missing parameters');
@@ -63,8 +70,51 @@ async function handleRunRecipe(ctx) {
     const userEditedRecipe = ctx.request.body.recipe;
 
     try {
+        ctx.utils.logAction(`Setting recipe.`);
+        await globals.deployer.confirmRecipe(userEditedRecipe);
+    } catch (error) {
+        return ctx.send({type: 'danger', message: error.message});
+    }
+
+    return ctx.send({success: true});
+}
+
+
+//================================================================
+/**
+ * Handle submition of the input variables/parameters
+ * @param {object} ctx
+ */
+async function handleSetVariables(ctx) {
+    //Sanity check
+    if(isUndefined(ctx.request.body.svLicense)){
+        return ctx.utils.error(400, 'Invalid Request - missing parameters');
+    }
+    const userVars = cloneDeep(ctx.request.body);
+
+    //Setting iden
+    if(typeof userVars.dbDelete !== 'undefined'){
+        userVars.dbDelete = (userVars.dbDelete === 'true');
+        userVars.dbConnectionString = (userVars.dbPassword.length)
+            ? `mysql://${userVars.dbUsername}:${userVars.dbPassword}@${userVars.dbHost}/${userVars.dbName}?charset=utf8mb4`
+            : `mysql://${userVars.dbUsername}@${userVars.dbHost}/${userVars.dbName}?charset=utf8mb4`;
+    }
+
+    //Setting identifiers array
+    const admin = globals.authenticator.getAdminByName(ctx.session.auth.username);
+    if(!admin) return ctx.send({type: 'danger', message: "Admin not found."});
+    const addPrincipalLines = [];
+    Object.keys(admin.providers).forEach(providerName => {
+        if(admin.providers[providerName].identifier){
+            addPrincipalLines.push(`add_principal identifier.${admin.providers[providerName].identifier} group.admin`);
+        }
+    });
+    userVars.addPrincipalsMaster = addPrincipalLines.join('\n');
+
+    //Start deployer
+    try {
         ctx.utils.logAction(`Running recipe.`);
-        globals.deployer.start(userEditedRecipe)
+        globals.deployer.start(userVars)
     } catch (error) {
         return ctx.send({type: 'danger', message: error.message});
     }
@@ -116,11 +166,28 @@ async function handleSaveConfig(ctx) {
     const newFXRunnerConfig = globals.configVault.getScopedStructure('fxRunner');
     newFXRunnerConfig.serverDataPath = slash(path.normalize(globals.deployer.deployPath));
     newFXRunnerConfig.cfgPath = slash(path.normalize(cfgFilePath));
+    if(typeof globals.deployer.recipe.onesync !== 'undefined'){
+        newFXRunnerConfig.onesync = globals.deployer.recipe.onesync;
+    }
     const saveFXRunnerStatus = globals.configVault.saveProfile('fxRunner', newFXRunnerConfig);
 
     if(saveFXRunnerStatus){
         globals.fxRunner.refreshConfig();
         ctx.utils.logAction(`Completed and committed server deploy.`);
+
+        //FIXME: temporary fix for the yarn issue requiring fxchild.stdin writes
+        yarnInputFixCounter = 0;
+        clearInterval(yarnInputFix);
+        yarnInputFix = setInterval(() => {
+            if(yarnInputFixCounter > 6){
+                if(GlobalData.verbose) log('Clearing yarnInputFix setInterval');
+                clearInterval(yarnInputFix);
+            }
+            yarnInputFixCounter++;
+            try {
+                globals.fxRunner.srvCmd(`txaPing temporary_yarn_workaround_please_ignore#${yarnInputFixCounter}`);
+            } catch (error) {}
+        }, 30*1000);
 
         //Starting server
         const spawnMsg = await globals.fxRunner.spawnServer(false);

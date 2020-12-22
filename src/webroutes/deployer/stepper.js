@@ -24,6 +24,7 @@ module.exports = async function DeployerStepper(ctx) {
     const renderData = {
         step: globals.deployer.step,
         serverProfile: globals.info.serverProfile,
+        deploymentID: globals.deployer.deploymentID,
     };
     if(globals.deployer.step === 'review'){
         renderData.recipe = {
@@ -34,6 +35,18 @@ module.exports = async function DeployerStepper(ctx) {
             description: globals.deployer.recipe.description,
             raw: globals.deployer.recipe.raw,
         }
+
+    }else if(globals.deployer.step === 'input'){
+        renderData.requireDBConfig = globals.deployer.recipe.requireDBConfig;
+        // renderData.inputVars = [];
+
+        const recipeVars = globals.deployer.getRecipeVars();
+        renderData.inputVars = Object.keys(recipeVars).map(name => {
+            return {
+                name: name,
+                value: recipeVars[name]
+            }
+        });
 
     }else if(globals.deployer.step === 'run'){
         renderData.deployPath = globals.deployer.deployPath;
@@ -46,6 +59,9 @@ module.exports = async function DeployerStepper(ctx) {
             renderData.serverCFG = await fs.readFile(`${globals.deployer.deployPath}/server.cfg`, 'utf8');
             if(renderData.serverCFG == '#save_attempt_please_ignore' || !renderData.serverCFG.length){
                 renderData.serverCFG = errorMessage;
+            }else if(renderData.serverCFG.length > 10240){ //10kb
+                renderData.serverCFG = `# This recipe created a ./server.cfg above 10kb, meaning its probably the wrong data. 
+Make sure everything is correct in the recipe and try again.`;
             }
         } catch (error) {
             if(GlobalData.verbose) dir(error);

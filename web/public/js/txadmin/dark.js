@@ -12,8 +12,7 @@
         toggle1.classList.toggle(hiddenClass);
         toggle2.classList.toggle(hiddenClass);
         isDarkMode = !isDarkMode;
-        localStorage.setItem('darkmode', (+isDarkMode).toString());
-        document.cookie = `txAdmin-darkMode=${isDarkMode}`;
+        document.cookie = `txAdmin-darkMode=${isDarkMode};path=/`;
     }
 
     toggle1.addEventListener('click', handlerFn);

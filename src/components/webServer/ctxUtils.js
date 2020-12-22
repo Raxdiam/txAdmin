@@ -73,7 +73,7 @@ async function renderMasterView(view, reqSess, data, txVars){
     data.profilePicture = (reqSess && reqSess.auth && reqSess.auth.picture)? reqSess.auth.picture : 'img/default_avatar.png';
     data.isTempPassword = (reqSess && reqSess.auth && reqSess.auth.isTempPassword);
     data.isLinux = (GlobalData.osType == 'linux');
-    data.showAdvanced = (process.env.APP_ENV !== 'webpack' || GlobalData.verbose);
+    data.showAdvanced = (GlobalData.isAdvancedUser || GlobalData.verbose);
 
     let out;
     try {
@@ -247,7 +247,7 @@ module.exports = async function WebCtxUtils(ctx, next){
         }
 
         //TODO: fix this atrocity
-        let soloViews = ['adminManager-editModal', 'basic/404'];
+        const soloViews = ['adminManager/editModal', 'basic/404'];
         if(view == 'login'){
             ctx.body = await renderLoginView(viewData, ctx.txVars);
         }else if(soloViews.includes(view)){

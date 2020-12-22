@@ -25,9 +25,6 @@ const canCreateFile = async (targetPath) => {
 const makeTemplateRecipe = (serverName, author) => `name: ${serverName}
 author: ${author}
 
-variables:
-    example: madstuff
-
 tasks: 
     - action: waste_time
       seconds: 5
@@ -94,20 +91,23 @@ const parseValidateRecipe = (rawRecipe) => {
         version: toDefault(recipe.version, '').trim(),
         author: toDefault(recipe.author, 'unknown').trim(),
         description: toDefault(recipe.description, '').trim(),
-        variables: recipe.variables || {},
-        tasks: []
+        variables: {},
+        tasks: [],
     };
 
-    //Checking meta tag requirements
+    //Checking/parsing meta tag requirements
+    if(typeof recipe['$onesync'] == 'string'){
+        const onesync = recipe['$onesync'].trim();
+        if(![`off`, `legacy`, `on`].includes(onesync)) throw new Error(`the onesync option selected required for this recipe ("${onesync}") is not supported by this FXServer version.`);
+        outRecipe.onesync = onesync;
+    }
     if(typeof recipe['$minFxVersion'] == 'number'){
         if(recipe['$minFxVersion'] > GlobalData.fxServerVersion) throw new Error(`this recipe requires FXServer v${recipe['$minFxVersion']} or above`);
         outRecipe.fxserverMinVersion = recipe['$minFxVersion']; //useless for now
     }
     if(typeof recipe['$engine'] == 'number'){
-        if(recipe['$engine'] !== 1) throw new Error(`unsupported '$engine' version ${recipe['$engine']}`);
+        if(recipe['$engine'] < 2) throw new Error(`unsupported '$engine' version ${recipe['$engine']}`);
         outRecipe.recipeEngineVersion = recipe['$engine']; //useless for now
-    }else{
-        outRecipe.recipeEngineVersion = 1;
     }
 
     //Validate tasks
@@ -119,6 +119,18 @@ const parseValidateRecipe = (rawRecipe) => {
         outRecipe.tasks.push(task)
     });
 
+    //Process inputs
+    outRecipe.requireDBConfig = recipe.tasks.some(t => t.action.includes('database'));
+    const protectedVarNames = ['licenseKey', 'dbHost', 'dbUsername', 'dbPassword', 'dbName', 'dbConnection'];
+    if(typeof recipe.variables == 'object' && recipe.variables !== null){
+        const varNames = Object.keys(recipe.variables);
+        if(varNames.some(n => protectedVarNames.includes(n))){
+            throw new Error(`One or more of the variables declared in the recipe are not allowed.`);
+        }
+        Object.assign(outRecipe.variables, recipe.variables);
+    }
+
+    //Output
     if(GlobalData.verbose) dir(outRecipe);
     return outRecipe;
 }
@@ -154,6 +166,7 @@ class Deployer {
         try {
             this.recipe = parseValidateRecipe(impRecipe);
         } catch (error) {
+            if(GlobalData.verbose) dir(error);
             throw new Error(`Recipe Error: ${error.message}`);
         }
     }
@@ -172,15 +185,46 @@ class Deployer {
     }
 
     /**
-     * Starts the deployment process
+     * Confirms the recipe and goes to the input stage
      * @param {string} userRecipe 
      */
-    start(userRecipe){
+    async confirmRecipe(userRecipe){
+        if(this.step !== 'review') throw new Error(`expected review step`);
+
+        //Parse/set recipe
         try {
             this.recipe = parseValidateRecipe(userRecipe);
         } catch (error) {
             throw new Error(`Cannot start() deployer due to a Recipe Error: ${error.message}`);
         }
+
+        //Ensure deployment path
+        try {
+            await fs.ensureDir(this.deployPath);
+        } catch (error) {
+            if(GlobalData.verbose) dir(error);
+            throw new Error(`Failed to create ${this.deployPath} with error: ${error.message}`);
+        }
+
+        this.step = 'input';
+    }
+
+    /**
+     * Returns the recipe variables for the deployer run step
+     */
+    getRecipeVars(){
+        if(this.step !== 'input') throw new Error(`expected input step`);
+        return cloneDeep(this.recipe.variables);
+        //TODO: ?? Object.keys pra montar varname: {type: 'string'}?
+    }
+
+    /**
+     * Starts the deployment process
+     * @param {string} userInputs 
+     */
+    start(userInputs){
+        if(this.step !== 'input') throw new Error(`expected input step`);
+        Object.assign(this.recipe.variables, userInputs);
         this.logLines = [];
         this.log(`Starting deployment of ${this.recipe.name} to ${this.deployPath}`);
         this.deployFailed = false;
@@ -190,11 +234,28 @@ class Deployer {
     }
 
     /**
+     * Marks the deploy as failed
+     */
+    async markFailedDeploy(){
+        this.deployFailed = true;
+        try {
+            const filePath = path.join(this.deployPath, '_DEPLOY_FAILED_DO_NOT_USE');
+            await fs.outputFile(filePath, 'This deploy was failed, please do not use these files.');
+        } catch (error) {}
+    }
+
+    /**
      * (Private) Run the tasks in a sequential way.
      */
     async runTasks(){
+        if(this.step !== 'run') throw new Error(`expected run step`);
         const contextVariables = cloneDeep(this.recipe.variables);
         contextVariables.deploymentID = this.deploymentID;
+        contextVariables.serverName = globals.config.serverName || '';
+        contextVariables.recipeName = this.recipe.name;
+        contextVariables.recipeAuthor = this.recipe.author;
+        contextVariables.recipeVersion = this.recipe.version;
+        contextVariables.recipeDescription = this.recipe.description;
 
         //Run all the tasks
         for (let index = 0; index < this.recipe.tasks.length; index++) {
@@ -208,13 +269,16 @@ class Deployer {
                 this.logLines[this.logLines.length -1] += ` ✔️`;
             } catch (error) {
                 this.logLines[this.logLines.length -1] += ` ❌`;
-                this.logError(`${taskID} failed with message: \n${error.message}`);
-                this.deployFailed = true;
-                return;
+                const msg = `${taskID} failed!\n`
+                        + `Message: ${error.message}\n`
+                        + `Options: \n`
+                        + JSON.stringify(task, null, 2);
+                this.logError(msg);
+                return await this.markFailedDeploy();
             }
         }
 
-        //Set progress 100
+        //Set progress
         this.progress = 100;
         this.log(`All tasks completed.`);
 
@@ -227,8 +291,22 @@ class Deployer {
             }
         } catch (error) {
             this.logError(`Deploy validation error: ${error.message}`);
-            this.deployFailed = true;
-            return;
+            return await this.markFailedDeploy();
+        }
+
+        //Replace {{svLicense}} in the server.cfg
+        try {
+            const task = {
+                file: './server.cfg',
+                mode: 'template',
+                search: '{{svLicense}}',
+                replace: '{{svLicense}}'
+            }
+            await recipeEngine['replace_string'].run(task, this.deployPath, contextVariables);
+            this.log(`Replacing {{svLicense}} in server.cfg... ✔️`);
+        } catch (error) {
+            this.logError(`Failed to set {{svLicense}} in server.cfg: ${error.message}`);
+            return await this.markFailedDeploy();
         }
 
         //Else: success :)

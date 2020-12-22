@@ -5,6 +5,8 @@ const util = require('util');
 const fs = require('fs-extra');
 const AdmZip = require('adm-zip');
 const axios = require("axios");
+const cloneDeep = require('lodash/cloneDeep');
+const escapeRegExp = require('lodash/escapeRegExp');
 const mysql = require('mysql2/promise');
 const { dir, log, logOk, logWarn, logError } = require('../extras/console')(modulename);
 
@@ -30,7 +32,14 @@ const isPathValid = (pathInput, acceptRoot=true) => {
         (acceptRoot || !isPathRoot(pathInput))
     )
 }
-
+const replaceVars = (inputString, deployerCtx) => {
+    const allVars = Object.keys(deployerCtx);
+    for (const varName of allVars) {
+        const varNameReplacer = new RegExp(escapeRegExp(`{{${varName}}}`), 'g');
+        inputString = inputString.replace(varNameReplacer, deployerCtx[varName].toString())
+    }
+    return inputString;
+}
 
 
 /**
@@ -54,7 +63,6 @@ const taskDownloadFile = async (options, basePath, deployerCtx) => {
     const res = await axios({
         method: 'get',
         url: options.url,
-        timeout: 5000,
         responseType: 'stream'
     });
     await new Promise((resolve, reject) => {
@@ -82,12 +90,29 @@ const validatorDownloadGithub = (options) => {
 const taskDownloadGithub = async (options, basePath, deployerCtx) => {
     if(!validatorDownloadGithub(options)) throw new Error(`invalid options`);
 
-    //Preparing vars
+    //Parsing source
     const srcMatch = options.src.match(githubRepoSourceRegex);
     if(!srcMatch || !srcMatch[3] || !srcMatch[4]) throw new Error(`invalid repository`);
     const repoOwner = srcMatch[3];
     const repoName = srcMatch[4];
-    const reference = options.ref || 'master';
+
+    //Setting git ref
+    let reference;
+    if(options.ref){
+        reference = options.ref
+    }else{
+        const res = await axios({
+            method: 'get',
+            url: `https://api.github.com/repos/${repoOwner}/${repoName}`,
+            responseType: 'json'
+        });
+        if(!res.data || !res.data.default_branch){
+            throw new Error(`reference not set, and wasn ot able to detect using github's api`);
+        }
+        reference = res.data.default_branch
+    }
+
+    //Preparing vars
     const downURL = `https://api.github.com/repos/${repoOwner}/${repoName}/zipball/${reference}`;
     const tmpFileName = `${repoName}${reference}-` + (Date.now()%100000000).toString(16);
     const tmpFileDir = path.join(basePath, `${tmpFileName}`);
@@ -98,7 +123,6 @@ const taskDownloadGithub = async (options, basePath, deployerCtx) => {
     const res = await axios({
         method: 'get',
         url: downURL,
-        timeout: 5000,
         responseType: 'stream'
     });
     await new Promise((resolve, reject) => {
@@ -258,20 +282,37 @@ const taskWriteFile = async (options, basePath, deployerCtx) => {
 
 /**
  * Replaces a string in the target file or files array based on a search string.
+ * Modes:
+ *  - template: (default) target string will be processed for vars
+ *  - literal: normal string search/replace without any vars
+ *  - all_vars: all vars.toString() will be replaced. The search option will be ignored
  */
 const validatorReplaceString = (options) => {
-    return (
-        (
-            ( 
-                Array.isArray(options.file) && 
-                options.file.every(s => isPathValid(s, false)) 
-            ) ||
-            isPathValid(options.file, false)
-        ) &&
-        typeof options.search == 'string' &&
-        options.search.length &&
-        typeof options.replace == 'string'
-    )
+    //Validate file
+    const fileList = (Array.isArray(options.file))? options.file : [options.file];
+    if(fileList.some(s => !isPathValid(s, false))){
+        return false;
+    }
+
+    //Validate mode
+    if(
+        typeof options.mode == 'undefined' ||
+        options.mode == 'template' ||
+        options.mode == 'literal'
+    ){
+        return (
+            typeof options.search == 'string' &&
+            options.search.length &&
+            typeof options.replace == 'string'
+        )
+
+    }else if(options.mode == 'all_vars'){
+        return true
+
+    }else{
+
+        return false;
+    }
 }
 const taskReplaceString = async (options, basePath, deployerCtx) => {
     if(!validatorReplaceString(options)) throw new Error(`invalid options`);
@@ -279,8 +320,18 @@ const taskReplaceString = async (options, basePath, deployerCtx) => {
     const fileList = (Array.isArray(options.file))? options.file : [options.file];
     for (let i = 0; i < fileList.length; i++){
         const filePath = safePath(basePath, fileList[i]);
-        const original = await fs.readFile(filePath);
-        const changed = original.toString().replace(options.search, options.replace);
+        const original = await fs.readFile(filePath, 'utf8');
+        let changed;
+        if(typeof options.mode == 'undefined' || options.mode == 'template'){
+            changed = original.replace(new RegExp(options.search, 'g'), replaceVars(options.replace, deployerCtx));
+            
+        }else if(options.mode == 'all_vars'){
+            changed = replaceVars(original, deployerCtx);
+
+        }else if(options.mode == 'literal'){
+            changed = original.replace(new RegExp(options.search, 'g'), options.replace);
+            
+        }
         await fs.writeFile(filePath, changed);
     }
 }
@@ -294,29 +345,26 @@ const validatorConnectDatabase = (options) => {
 }
 const taskConnectDatabase = async (options, basePath, deployerCtx) => {
     if(!validatorConnectDatabase(options)) throw new Error(`invalid options`);
-    if(typeof deployerCtx.deploymentID !== 'string' || !deployerCtx.deploymentID.length) throw new Error(`invalid deploymentID`);
     if(typeof deployerCtx.dbHost !== 'string') throw new Error(`invalid dbHost`);
     if(typeof deployerCtx.dbUsername !== 'string') throw new Error(`invalid dbUsername`);
-    if(typeof deployerCtx.dbPassword !== 'string' && deployerCtx.dbPassword !== null) throw new Error(`dbPassword should be a string or null`);
-    if(typeof deployerCtx.dbName !== 'string' && deployerCtx.dbName !== null) throw new Error(`dbName should be a string or null`);
+    if(typeof deployerCtx.dbPassword !== 'string') throw new Error(`dbPassword should be a string`);
+    if(typeof deployerCtx.dbName !== 'string') throw new Error(`dbName should be a string`);
+    if(typeof deployerCtx.dbDelete !== 'boolean') throw new Error(`dbDelete should be a boolean`);
 
     //Connect to the database
     const mysqlOptions = {
         host: deployerCtx.dbHost,
         user: deployerCtx.dbUsername,
-        password: (deployerCtx.dbPassword)? deployerCtx.dbPassword : undefined,
-        database: (deployerCtx.dbName)? deployerCtx.dbName : undefined,
+        password: deployerCtx.dbPassword,
         multipleStatements: true,
     }
-    deployerCtx.mysqlCon = await mysql.createConnection(mysqlOptions);
-    if(deployerCtx.dbName == null){
-        const escapedName = mysql.escapeId(deployerCtx.deploymentID);
-        if(deployerCtx.dbOverwrite === 'yes_delete_existing_database'){
-            await deployerCtx.mysqlCon.query(`DROP DATABASE IF EXISTS ${escapedName}`);
-        }
-        await deployerCtx.mysqlCon.query(`CREATE DATABASE IF NOT EXISTS ${escapedName}`);
-        await deployerCtx.mysqlCon.query(`USE ${escapedName}`);
+    deployerCtx.dbConnection = await mysql.createConnection(mysqlOptions);
+    const escapedDBName = mysql.escapeId(deployerCtx.dbName);
+    if(deployerCtx.dbDelete){
+        await deployerCtx.dbConnection.query(`DROP DATABASE IF EXISTS ${escapedDBName}`);
     }
+    await deployerCtx.dbConnection.query(`CREATE DATABASE IF NOT EXISTS ${escapedDBName} CHARACTER SET utf8 COLLATE utf8_general_ci`);
+    await deployerCtx.dbConnection.query(`USE ${escapedDBName}`);
 }
 
 
@@ -331,7 +379,7 @@ const validatorQueryDatabase = (options) => {
 }
 const taskQueryDatabase = async (options, basePath, deployerCtx) => {
     if(!validatorQueryDatabase(options)) throw new Error(`invalid options`);
-    if(!deployerCtx.mysqlCon) throw new Error(`Database connection not found. Run connect_database before query_database`);
+    if(!deployerCtx.dbConnection) throw new Error(`Database connection not found. Run connect_database before query_database`);
 
     let sql;
     if(options.file){
@@ -340,7 +388,24 @@ const taskQueryDatabase = async (options, basePath, deployerCtx) => {
     }else{
         sql = options.query;
     }
-    await deployerCtx.mysqlCon.query(sql);
+    await deployerCtx.dbConnection.query(sql);
+}
+
+
+/**
+ * Loads variables from a json file to the context.
+ */
+const validatorLoadVars = (options) => {
+    return isPathValid(options.src, false)
+}
+const taskLoadVars = async (options, basePath, deployerCtx) => {
+    if(!validatorLoadVars(options)) throw new Error(`invalid options`);
+    
+    const srcPath = safePath(basePath, options.src);
+    const rawData = await fs.readFile(srcPath, 'utf8');
+    const inData = JSON.parse(rawData);
+    inData.dbConnection = undefined;
+    Object.assign(deployerCtx, inData);
 }
 
 
@@ -350,7 +415,7 @@ const taskQueryDatabase = async (options, basePath, deployerCtx) => {
 const validatorWasteTime = (options) => {
     return (typeof options.seconds == 'number')
 }
-const taskWasteTime = (options, target) => {
+const taskWasteTime = (options, basePath, deployerCtx) => {
     return new Promise((resolve, reject) => {
         setTimeout(() => {
             resolve(true)
@@ -362,11 +427,18 @@ const taskWasteTime = (options, target) => {
 /**
  * DEBUG Fail fail fail :o
  */
-const validatorFailTest = (options) => {
-    return true;
-}
-const taskFailTest = async (options, target) => {
+const taskFailTest = async (options, basePath, deployerCtx) => {
     throw new Error(`test error :p`);
+}
+
+
+/**
+ * DEBUG logs all ctx vars
+ */
+const taskDumpVars = async (options, basePath, deployerCtx) => {
+    const toDump = cloneDeep(deployerCtx)
+    toDump.dbConnection = (toDump.dbConnection && toDump.dbConnection.constructor && toDump.dbConnection.constructor.name)? toDump.dbConnection.constructor.name : undefined;
+    dir(toDump)
 }
 
 
@@ -374,6 +446,7 @@ const taskFailTest = async (options, target) => {
 DONE:
     - waste_time (DEBUG)
     - fail_test (DEBUG)
+    - dump_vars (DEBUG)
     - download_file
     - remove_path (file or folder)
     - ensure_dir
@@ -384,11 +457,11 @@ DONE:
     - replace_string (single or array)
     - connect_database (connects to mysql, creates db if not set)
     - query_database (file or string)
-    - download_github (with ref and subpath)
+    - download_github (with ref and subpath) 
+    - load_vars
     
 TODO:
-    - read json into context vars?
-    - print vars to console?
+    - ??????
 */
 
 
@@ -438,6 +511,10 @@ module.exports = {
         validate: validatorQueryDatabase,
         run: taskQueryDatabase,
     },
+    load_vars: {
+        validate: validatorLoadVars,
+        run: taskLoadVars,
+    },
 
     //DEBUG mock only
     waste_time:{
@@ -445,7 +522,11 @@ module.exports = {
         run: taskWasteTime,
     },
     fail_test:{
-        validate: validatorFailTest,
+        validate: (() => true),
         run: taskFailTest,
+    },
+    dump_vars:{
+        validate: (() => true),
+        run: taskDumpVars,
     },
 }

@@ -35,9 +35,13 @@ module.exports = async function AuthVerify(ctx) {
             return ctx.utils.render('login', renderData);
         }
 
+        //Resolve picture
+        const providerWithPicture = Object.values(admin.providers).find(provider => provider.data && provider.data.picture);
+
         //Setting up session
         ctx.session.auth = {
             username: admin.name,
+            picture: (providerWithPicture)? providerWithPicture.data.picture : undefined,
             password_hash: admin.password_hash,
             expires_at: false
         };
@@ -47,6 +51,7 @@ module.exports = async function AuthVerify(ctx) {
         globals.databus.txStatsData.loginMethods.password++;
     } catch (error) {
         logWarn(`Failed to authenticate ${ctx.request.body.username} with error: ${error.message}`);
+        if(GlobalData.verbose) dir(error)
         renderData.message = 'Error autenticating admin.';
         return ctx.utils.render('login', renderData);
     }

@@ -35,7 +35,12 @@ exports.deployer = {
 exports.settings = {
     get: require('./settings/get'),
     save: require('./settings/save'),
-    masterActions: require('./settings/masterActions'), //FIXME: maybe this should be outside the settings page?
+}
+
+
+exports.masterActions = {
+    get: require('./masterActions/get'),
+    actions: require('./masterActions/actions'),
 }
 
 exports.setup = {
