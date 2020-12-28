@@ -122,6 +122,7 @@ module.exports = class ConfigVault {
             out.monitor = {
                 timeout: toDefault(cfg.monitor.timeout, null),
                 restarterSchedule: toDefault(cfg.monitor.restarterSchedule, null),
+                restarterScheduleWarnings: toDefault(cfg.monitor.restarterScheduleWarnings, [30, 15, 10, 5, 4, 3, 2, 1]), //not in template
                 cooldown: toDefault(cfg.monitor.cooldown, null), //not in template
                 disableChatWarnings: toDefault(cfg.monitor.disableChatWarnings, null), //not in template
                 heartBeat: {
@@ -137,7 +138,7 @@ module.exports = class ConfigVault {
                 onJoinCheckBan: toDefault(cfg.playerController.onJoinCheckBan, true),
                 onJoinCheckWhitelist: toDefault(cfg.playerController.onJoinCheckWhitelist, false),
                 minSessionTime:  toDefault(cfg.playerController.minSessionTime, 15),
-                whitelistRejectionMessage: toDefault(cfg.playerController.whitelistRejectionMessage, 'You are not yet whitelisted in this server.\nPlease join http://discord.gg/example.\n<strong>Your ID: <id></strong>'),
+                whitelistRejectionMessage: toDefault(cfg.playerController.whitelistRejectionMessage, 'You are not yet whitelisted in this server.\nPlease join http://discord.gg/example.\nYour ID: <id>'),
                 wipePendingWLOnStart: toDefault(cfg.playerController.wipePendingWLOnStart, true),
             };
             out.authenticator = {
@@ -196,6 +197,7 @@ module.exports = class ConfigVault {
             //Monitor
             cfg.monitor.timeout = cfg.monitor.timeout || 1500;
             cfg.monitor.restarterSchedule = cfg.monitor.restarterSchedule || [];
+            cfg.monitor.restarterScheduleWarnings = cfg.monitor.restarterScheduleWarnings || [30, 15, 10, 5, 4, 3, 2, 1];
             cfg.monitor.cooldown = parseInt(cfg.monitor.cooldown) || 60; //not in template - 45 > 60 > 90 -> 60 after fixing the "extra time" logic
             cfg.monitor.disableChatWarnings = (cfg.monitor.disableChatWarnings === 'true' || cfg.monitor.disableChatWarnings === true);
             cfg.monitor.heartBeat.failThreshold = parseInt(cfg.monitor.heartBeat.failThreshold) || 10;

@@ -32,6 +32,9 @@ tasks:
       seconds: 5
 `;
 
+//Constants
+const engineVersion = 2;
+
 
 /**
  * Perform deployer local target path permission/emptiness checking
@@ -106,7 +109,7 @@ const parseValidateRecipe = (rawRecipe) => {
         outRecipe.fxserverMinVersion = recipe['$minFxVersion']; //useless for now
     }
     if(typeof recipe['$engine'] == 'number'){
-        if(recipe['$engine'] < 2) throw new Error(`unsupported '$engine' version ${recipe['$engine']}`);
+        if(recipe['$engine'] < engineVersion) throw new Error(`unsupported '$engine' version ${recipe['$engine']}`);
         outRecipe.recipeEngineVersion = recipe['$engine']; //useless for now
     }
 
@@ -157,6 +160,7 @@ class Deployer {
         this.originalRecipe = originalRecipe;
         this.deploymentID = deploymentID;
         this.progress = 0;
+        this.serverName = customMetaData.serverName || globals.config.serverName || '';
         this.logLines = [];
 
         //Load recipe
@@ -251,7 +255,7 @@ class Deployer {
         if(this.step !== 'run') throw new Error(`expected run step`);
         const contextVariables = cloneDeep(this.recipe.variables);
         contextVariables.deploymentID = this.deploymentID;
-        contextVariables.serverName = globals.config.serverName || '';
+        contextVariables.serverName = this.serverName;
         contextVariables.recipeName = this.recipe.name;
         contextVariables.recipeAuthor = this.recipe.author;
         contextVariables.recipeVersion = this.recipe.version;
@@ -294,18 +298,16 @@ class Deployer {
             return await this.markFailedDeploy();
         }
 
-        //Replace {{svLicense}} in the server.cfg
+        //Replace all vars in the server.cfg
         try {
             const task = {
+                mode: 'all_vars',
                 file: './server.cfg',
-                mode: 'template',
-                search: '{{svLicense}}',
-                replace: '{{svLicense}}'
             }
             await recipeEngine['replace_string'].run(task, this.deployPath, contextVariables);
-            this.log(`Replacing {{svLicense}} in server.cfg... ✔️`);
+            this.log(`Replacing all vars in server.cfg... ✔️`);
         } catch (error) {
-            this.logError(`Failed to set {{svLicense}} in server.cfg: ${error.message}`);
+            this.logError(`Failed to replace all vars in server.cfg: ${error.message}`);
             return await this.markFailedDeploy();
         }
 
@@ -324,5 +326,6 @@ class Deployer {
 module.exports = {
     Deployer,
     validateTargetPath,
-    parseValidateRecipe
+    parseValidateRecipe,
+    engineVersion
 }
