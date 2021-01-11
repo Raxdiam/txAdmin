@@ -1,7 +1,7 @@
 //Requires
 const modulename = 'ConfigVault';
 const fs = require('fs');
-const clone = require('clone');
+const cloneDeep = require('lodash/cloneDeep');
 const { dir, log, logOk, logWarn, logError } = require('../extras/console')(modulename);
 
 //Helper functions
@@ -93,7 +93,7 @@ module.exports = class ConfigVault {
      * @param {object} cfgData
      */
     setupConfigStructure(cfgData){
-        let cfg = clone(cfgData);
+        let cfg = cloneDeep(cfgData);
         let out = {
             global: null,
             logger: null,
@@ -120,25 +120,19 @@ module.exports = class ConfigVault {
                 logPath: toDefault(cfg.logger.logPath, null), //not in template
             };
             out.monitor = {
-                timeout: toDefault(cfg.monitor.timeout, null),
                 restarterSchedule: toDefault(cfg.monitor.restarterSchedule, null),
                 restarterScheduleWarnings: toDefault(cfg.monitor.restarterScheduleWarnings, [30, 15, 10, 5, 4, 3, 2, 1]), //not in template
                 cooldown: toDefault(cfg.monitor.cooldown, null), //not in template
                 disableChatWarnings: toDefault(cfg.monitor.disableChatWarnings, null), //not in template
-                heartBeat: {
-                    failThreshold: (cfg.monitor.heartBeat)? toDefault(cfg.monitor.heartBeat.failThreshold, null) : null,
-                    failLimit: (cfg.monitor.heartBeat)? toDefault(cfg.monitor.heartBeat.failLimit, null) : null,
-                },
-                healthCheck: {
-                    failThreshold: (cfg.monitor.healthCheck)? toDefault(cfg.monitor.healthCheck.failThreshold, null) : null,
-                    failLimit: (cfg.monitor.healthCheck)? toDefault(cfg.monitor.healthCheck.failLimit, null) : null,
-                }
             };
             out.playerController = {
                 onJoinCheckBan: toDefault(cfg.playerController.onJoinCheckBan, true),
                 onJoinCheckWhitelist: toDefault(cfg.playerController.onJoinCheckWhitelist, false),
                 minSessionTime:  toDefault(cfg.playerController.minSessionTime, 15),
-                whitelistRejectionMessage: toDefault(cfg.playerController.whitelistRejectionMessage, 'You are not yet whitelisted in this server.\nPlease join http://discord.gg/example.\nYour ID: <id>'),
+                whitelistRejectionMessage: toDefault(
+                    cfg.playerController.whitelistRejectionMessage, 
+                    'You are not yet whitelisted in this server.\nPlease join http://discord.gg/example.\nYour ID: <id>'
+                ),
                 wipePendingWLOnStart: toDefault(cfg.playerController.wipePendingWLOnStart, true),
             };
             out.authenticator = {
@@ -154,7 +148,10 @@ module.exports = class ConfigVault {
                 token:  toDefault(cfg.discordBot.token, null),
                 announceChannel:  toDefault(cfg.discordBot.announceChannel, null),
                 prefix: toDefault(cfg.discordBot.prefix, '/'),
-                statusMessage: toDefault(cfg.discordBot.statusMessage, '**IP:** \`change-me:<port>\`\n**Players:** <players>\n**Uptime:** <uptime>'),
+                statusMessage: toDefault(
+                    cfg.discordBot.statusMessage, 
+                    '**IP:** \`change-me:<port>\`\n**Players:** <players>\n**Uptime:** <uptime>'
+                ),
                 commandCooldown: toDefault(cfg.discordBot.commandCooldown, null), //not in template
             };
             out.fxRunner = {
@@ -184,7 +181,7 @@ module.exports = class ConfigVault {
      * @param {object} cfgData
      */
     setupConfigDefaults(cfgData){
-        let cfg = clone(cfgData);
+        let cfg = cloneDeep(cfgData);
         //NOTE: the bool trick in fxRunner.autostart won't work if we want the default to be true
         try {
             //Global
@@ -195,15 +192,10 @@ module.exports = class ConfigVault {
             cfg.logger.logPath = cfg.logger.logPath || `${this.serverProfilePath}/logs/admin.log`; //not in template
 
             //Monitor
-            cfg.monitor.timeout = cfg.monitor.timeout || 1500;
             cfg.monitor.restarterSchedule = cfg.monitor.restarterSchedule || [];
             cfg.monitor.restarterScheduleWarnings = cfg.monitor.restarterScheduleWarnings || [30, 15, 10, 5, 4, 3, 2, 1];
             cfg.monitor.cooldown = parseInt(cfg.monitor.cooldown) || 60; //not in template - 45 > 60 > 90 -> 60 after fixing the "extra time" logic
             cfg.monitor.disableChatWarnings = (cfg.monitor.disableChatWarnings === 'true' || cfg.monitor.disableChatWarnings === true);
-            cfg.monitor.heartBeat.failThreshold = parseInt(cfg.monitor.heartBeat.failThreshold) || 10;
-            cfg.monitor.heartBeat.failLimit = parseInt(cfg.monitor.heartBeat.failLimit) || 45;
-            cfg.monitor.healthCheck.failThreshold = parseInt(cfg.monitor.healthCheck.failThreshold) || 10;
-            cfg.monitor.healthCheck.failLimit = parseInt(cfg.monitor.healthCheck.failLimit) || 300;
 
             //Player Controller
             cfg.playerController.onJoinCheckBan = (cfg.playerController.onJoinCheckBan === null)? true : (cfg.playerController.onJoinCheckBan === 'true' || cfg.playerController.onJoinCheckBan === true);
@@ -276,7 +268,7 @@ module.exports = class ConfigVault {
      * Return configs for a specific scope (reconstructed and freezed)
      */
     getScoped(scope){
-        return clone(this.config[scope]);
+        return cloneDeep(this.config[scope]);
     }
 
     //================================================================
@@ -284,7 +276,7 @@ module.exports = class ConfigVault {
      * Return configs for a specific scope (reconstructed and freezed)
      */
     getScopedStructure(scope){
-        return clone(this.configFile[scope]);
+        return cloneDeep(this.configFile[scope]);
     }
 
 
@@ -293,7 +285,7 @@ module.exports = class ConfigVault {
      * Return all configs individually reconstructed and freezed
      */
     getAll(){
-        let cfg = clone(this.config);
+        let cfg = cloneDeep(this.config);
         return deepFreeze({
             global: cfg.global,
             logger: cfg.logger,
@@ -315,7 +307,7 @@ module.exports = class ConfigVault {
      */
     saveProfile(scope, newConfig){
         try {
-            let toSave = clone(this.configFile);
+            let toSave = cloneDeep(this.configFile);
             toSave[scope] = newConfig;
             toSave = removeNulls(toSave);
             fs.writeFileSync(this.configFilePath, JSON.stringify(toSave, null, 2), 'utf8');

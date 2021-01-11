@@ -120,7 +120,7 @@ async function getFXServerData(){
         responseType: 'json',
         responseEncoding: 'utf8',
         maxRedirects: 0,
-        timeout: globals.monitor.config.timeout
+        timeout: globals.monitor.hardConfigs.timeout
     }
     
     //Making HTTP Request
@@ -240,6 +240,11 @@ async function gettxAdminData(){
 
     const controllerConfigs = globals.playerController.config;
     const httpCounter = globals.databus.txStatsData.httpCounter;
+    const logFileSize = (
+        globals.fxRunner &&
+        globals.fxRunner.outputHandler &&
+        globals.fxRunner.outputHandler.logFileSize
+    )? globals.fxRunner.outputHandler.logFileSize : '--';
     return {
         //Stats
         uptime: humanizeDuration(process.uptime()*1000, humanizeOptions),
@@ -253,8 +258,8 @@ async function gettxAdminData(){
         hbFD3Fails: globals.databus.txStatsData.heartBeatStats.fd3Failed,
         hbHTTPFails: globals.databus.txStatsData.heartBeatStats.httpFailed,
         hbBootSeconds: globals.databus.txStatsData.bootSeconds.join(', ') || '--',
+        logFileSize,
         //Settings
-        timeout: globals.monitor.config.timeout,
         cooldown: globals.monitor.config.cooldown,
         schedule: globals.monitor.config.restarterSchedule.join(', ') || '--',
         fxServerPath: GlobalData.fxServerPath,

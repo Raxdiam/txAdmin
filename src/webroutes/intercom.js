@@ -1,6 +1,6 @@
 //Requires
 const modulename = 'WebServer:Intercom';
-const clone = require('clone');
+const cloneDeep = require('lodash/cloneDeep');
 const { dir, log, logOk, logWarn, logError } = require('../extras/console')(modulename);
 
 //Helper functions
@@ -16,9 +16,9 @@ module.exports = async function Intercom(ctx) {
     if(isUndefined(ctx.params.scope)){
         return ctx.utils.error(400, 'Invalid Request');
     }
-    let scope = ctx.params.scope;
+    const scope = ctx.params.scope;
 
-    let postData = clone(ctx.request.body);
+    const postData = cloneDeep(ctx.request.body);
     postData.txAdminToken = true;
 
     //Delegate to the specific scope functions
