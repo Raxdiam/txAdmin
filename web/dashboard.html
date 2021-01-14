@@ -6,8 +6,15 @@
     #d3-container {
         height: 340px;
         margin: auto;
+        overflow: hidden;
         /* DEBUG */
         /* background-color: rgb(207, 233, 255);  */
+    }
+    #d3-container svg {
+        height: 340px;
+        width: 100%;
+        margin: auto;
+        overflow: hidden;
     }
     #x-axis path{
         stroke: none;
@@ -52,6 +59,11 @@
         font-weight: 500;
         line-height: 2;
     }
+
+    .dashboard-chart {
+        width: 100% !important; 
+        max-width: 890px !important;
+    }
 </style>
 
 <!-- Title & outdated message: -->
@@ -71,7 +83,7 @@
 
 <!-- Chart stuff -->
 <div class="row justify-content-center">
-    <div class="col-lg-12 col-xl-8">
+    <div class="dashboard-chart">
         <div class="card card-accent-info">
             <div class="card-body p-1">
                 <div class="text-center axisTitle">
@@ -84,18 +96,12 @@
                     Tick Time (lower is better)
                 </div>
                 
-                {{@if(it.chartData)}}
                 <div id="d3-container">
                     <br><br><br><br><br>
-                    <div class="text-center text-muted p-4" style="font-size: 3em;">
+                    <div class="text-center text-muted p-4" style="font-size: 2.25em;" id="d3-container-message">
                         loading chart...
                     </div>
                 </div>
-                {{#else}}
-                    <div class="text-center text-muted p-4" style="font-size: 2.25em;">
-                        Players & Performance data will be available soon...
-                    </div>
-                {{/if}}
             
             </div>
         </div>
@@ -176,6 +182,73 @@
 
 {{@include("footer", it)/}}
 
+<script src="https://d3js.org/d3.v6.min.js"></script>
+<script type="module">
+    import { drawHeatmap } from "/js/txadmin/chart.js";
+
+    //Elements
+    const perfDiagnosticsMessage = document.getElementById('perfDiagnosticsMessage');
+    const d3Container = document.getElementById('d3-container');
+    const d3ContainerMessage = document.getElementById('d3-container-message');
+    
+    (async () => {
+        //Prepare data
+        let perfData;
+        try {
+            const rawPerfData = await fetch(`/chartData`);
+            const parsedPerfData = JSON.parse(await rawPerfData.text());
+            if(!Array.isArray(parsedPerfData)){
+                if(parsedPerfData.failReason == 'not_set'){
+                    d3ContainerMessage.innerText = 'chart database still loading';
+
+                }else if(parsedPerfData.failReason == 'not_enough_data'){
+                    d3ContainerMessage.innerText = 'Players & Performance data will be available soon...';
+
+                }else if(parsedPerfData.failReason == 'data_processing'){
+                    d3ContainerMessage.innerText = 'chart data processing failed';
+
+                }else{
+                    d3ContainerMessage.innerText = 'invalid chart data';
+
+                }
+            }else{
+                perfData = parsedPerfData;
+            }
+        } catch (error) {
+            d3ContainerMessage.innerText = 'failed to load chart data';
+        }
+        if(!perfData) return;
+        //DEBUG
+        // perfData = [...perfData, ...perfData, ...perfData]
+        // perfData = perfData.slice(-200)
+
+        //Render page
+        const chartOptions = {
+            // colorScheme: d3[`{{[it.uiTheme, 'interpolateViridis', 'interpolateTurbo']|ternary}}`],
+            // colorScheme: d3.interpolateInferno,
+            colorScheme: d3.interpolateTurbo,
+            // colorScheme: d3.interpolateViridis,
+        }
+
+        const draw = () => {
+            const tsStart = Date.now();
+            drawHeatmap(d3Container, perfData, chartOptions);
+            d3Container.style.opacity = 1;
+            const duration = Date.now() - tsStart;
+            perfDiagnosticsMessage.textContent = `Took ${duration}ms to draw ${perfData.length*15} rects from ${perfData.length} snapshots.`;
+        }
+        draw();
+
+        let redrawTimeout;
+        window.addEventListener("resize", () => {
+            clearTimeout(redrawTimeout);
+            d3Container.style.opacity = 0.5;
+            redrawTimeout = setTimeout(() => {
+                draw();
+            }, 250);
+        });
+    })();
+</script>
 
 <script>
     //============================================== Controls (start/restart/stop)

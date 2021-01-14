@@ -1,6 +1,6 @@
 ## TODO v3.2
 - [x] update README
-- [x] merge PR#226
+- [x] added option to configure the scheduled restart warning times (merge PR#226)
 - [x] move the Monitor/Restarter tab in the settings page
 - [x] clean github Issues
 - [x] replace `clone` with `lodash/cloneDeep`
@@ -8,9 +8,18 @@
 - [x] remove many monitor settings since they were being misused and were never useful
 - [x] replace ping with player ID on sidebar
 - [x] updated packages
-- [ ] start collecting `/perf/` metrics
-- [ ] add performance chart to dashboard
-- [ ] set darkmode as default
+- [x] start collecting `/perf/` metrics
+- [x] add performance chart to dashboard
+- [x] set darkmode as default
+- [x] compile test on latest, reset timer, version bump
+> v3.2.0
+- [x] fixed perf chart time labels
+> v3.2.1
+- [x] fixed perf chart URL
+> v3.2.2
+- [x] made the chart resposive
+- [x] made the chart player count more consistent
+- [x] reverted dark mode as default
 
 > ASAP!:
 - [ ] deal with the last 2 PRs
@@ -27,7 +36,7 @@
 - [ ] add RedM compatibility
 - [ ] add `.editorconfig`
 - [ ] create auto backup of the database
-- [ ] ignore key bindings commands 
+- [ ] ignore key bindings commands  https://discord.com/channels/577993482761928734/766868363041046589/795420910713831446
 - [ ] add custom event for broadcast
 
 
