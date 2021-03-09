@@ -7,12 +7,14 @@ const { dir, log, logOk, logWarn, logError } = require('../extras/console')(modu
 //Statically requiring languages because of webpack
 const languages = {
     ar: require('../../locale/ar.json'),
+    bs: require('../../locale/bs.json'),
     cs: require('../../locale/cs.json'),
     da: require('../../locale/da.json'),
     de: require('../../locale/de.json'),
     el: require('../../locale/el.json'),
     en: require('../../locale/en.json'),
     es: require('../../locale/es.json'),
+    fa: require('../../locale/fa.json'),
     fi: require('../../locale/fi.json'),
     fr: require('../../locale/fr.json'),
     hu: require('../../locale/hu.json'),
@@ -37,7 +39,7 @@ const languages = {
  */
 module.exports = class Translator {
     constructor() {
-        logOk('Started');
+        // logOk('Started');
         this.language = globals.config.language;
         this.polyglot = null;
 

@@ -1,28 +1,17 @@
-## TODO v3.2
-- [x] update README
-- [x] added option to configure the scheduled restart warning times (merge PR#226)
-- [x] move the Monitor/Restarter tab in the settings page
-- [x] clean github Issues
-- [x] replace `clone` with `lodash/cloneDeep`
-- [x] refactor dashboard in preparation to the chart
-- [x] remove many monitor settings since they were being misused and were never useful
-- [x] replace ping with player ID on sidebar
-- [x] updated packages
-- [x] start collecting `/perf/` metrics
-- [x] add performance chart to dashboard
-- [x] set darkmode as default
-- [x] compile test on latest, reset timer, version bump
-> v3.2.0
-- [x] fixed perf chart time labels
-> v3.2.1
-- [x] fixed perf chart URL
-> v3.2.2
-- [x] made the chart resposive
-- [x] made the chart player count more consistent
-- [x] reverted dark mode as default
+## TODO v3.4
+- [x] change chart awaiting data message
+- [x] check if the "custom template" was modified at all
+- [x] add master username to the `{{addPrincipalsMaster}}` `server.cfg` placeholder to prevent confusion
+- [x] validate if the database config is working before running the deployer
+- [x] preventing VPS lag / DDoS to cause server restarts, and add freeze stats for the diagnostics page
+- [x] update packages
+- [x] setup: add automatic config file suggestion, with wrong extension check
+- [x] simplify the start messages
+- [ ] test on latest + version bump
+
 
 > ASAP!:
-- [ ] deal with the last 2 PRs
+- [ ] disable server auto-start when no admins configured
 - [ ] consolidate the log pages
 - [ ] add discord group whitelist (whitelist switch becomes a select box that will enable guildID and roleID)
         - Manual Approval (default)
@@ -33,7 +22,6 @@
         - this message id can be stored in the config file
         - if discord id is present, use that instead of name (careful with the pings!)
 - [ ] send log via FD3
-- [ ] add RedM compatibility
 - [ ] add `.editorconfig`
 - [ ] create auto backup of the database
 - [ ] ignore key bindings commands  https://discord.com/channels/577993482761928734/766868363041046589/795420910713831446
@@ -154,7 +142,7 @@ Requirements:
 ### [OFFICIAL] How to make a FiveM Server tutorial 2021 for beginners!
 Target: absolute beginners, barely have a vps
 - Requirements:
-    - Needs to be a VPS
+    - Needs to be a VPS (show suggestion list)
     - OS: windows server 2016 or 2019 recommended
     - Hardware specs recommendation
     - Download Visual C++
@@ -164,7 +152,7 @@ Target: absolute beginners, barely have a vps
 - Open firewall ports (show windows + OVH)
 - Download artifact (show difference between latest and latest recommended)
 - Set folder structure
-- Run txAdmin
+- Run txAdmin (should open chrome, if it doesn't, then open manually)
 - Open page outside VPS to show the ip:port thing
 - Create master account
 - Setup:
@@ -180,7 +168,7 @@ Target: server owners that followed the stupid Jeva tutorial
 - Show current stupid folder structure
 - Download artifact (show difference between latest and latest recommended)
 - Set new folder structure
-- Run txAdmin
+- Run txAdmin (should open chrome, if it doesn't, then open manually)
 - Create master account
 - Setup (show endpoint + server.cfg.txt errors)
 - Show how to create admins
@@ -225,10 +213,9 @@ nodemon +set txAdminFakePlayerlist yesplzx +set txAdminVerbose truex
 rm -rf dist
 npm run build
 
-# upgrade util:
+# other stuff
+export TXADMIN_DEFAULT_LICENSE="YourKeyYourKeyYourKeyYourKeyYour"
 npm-upgrade
-
-# F8
 con_miniconChannels script:monitor*
 ```
 

@@ -22,7 +22,7 @@ const formatCommand = (cmd, ...params) => {
 
 module.exports = class FXRunner {
     constructor(config) {
-        logOk('Started');
+        // logOk('Started');
         this.config = config;
         this.spawnVariables = null;
         this.fxChild = null;
@@ -138,7 +138,10 @@ module.exports = class FXRunner {
             rawCfgFile = helpers.getCFGFileData(cfgFilePath);
         } catch (error) {
             const errMsg = logError(`server.cfg error: ${error.message}`);
-            logError(`Please go to the settigns page and fix the paths.`);
+            if(error.message.includes('unreadable')) {
+                logError(`You likely copied the txData folder from another server, or moved/deleted your server files.`);
+                logError(`Please go to "Settings > FXServer" and fix the "Server Data Folder" and "CFX File Path".`);
+            }
             return errMsg;
         }
         try {

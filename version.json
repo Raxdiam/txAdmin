@@ -1,6 +1,5 @@
 {
-    "version": "3.2.2",
-    "changelog": "Deprecated Message. Please Update to v3.",
+    "version": "3.4.0",
     "allVersions": [
         {
             "version": "1.0.1",
@@ -237,6 +236,14 @@
         {
             "version": "3.2.3",
             "changelog": "Improved chart player count consistency. Made the chart responsive. Reverted dark mode as default."
+        },
+        {
+            "version": "3.3.0",
+            "changelog": "Improved chart. Added RedM compatibility. Added Bosnian and Persian. Minor stuff."
+        },
+        {
+            "version": "3.4.0",
+            "changelog": "Preventing DDoS on txAdmin to cause false crash detection. Imporved onboarding experience."
         }
     ]
 }

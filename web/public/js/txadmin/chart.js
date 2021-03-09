@@ -14,11 +14,10 @@ const drawHeatmap = (d3Container, perfData, options = {}) => {
         top: options.margin.top || 5,
         right: options.margin.right || 45,
         bottom: options.margin.bottom || 20,
-        left: options.margin.left || 25
+        left: options.margin.left || 27
     };
     const height = options.height || 340;
     const colorScheme = options.colorScheme || d3.interpolateInferno;
-    const timeTickInterval = options.timeTickInterval || 15;
 
     //TODO: make it responsive with screen size
     const tickIntervalMod = Math.min(
@@ -31,6 +30,7 @@ const drawHeatmap = (d3Container, perfData, options = {}) => {
     const snapAvgTickTimes = [];
     const snapClients = [];
     const snapBuckets = [];
+    const snapSkips = [];
     for (let snapIndex = 0; snapIndex < perfData.length; snapIndex++) {
         const snap = perfData[snapIndex];
         snapAvgTickTimes.push(snap.avgTime);
@@ -38,6 +38,11 @@ const drawHeatmap = (d3Container, perfData, options = {}) => {
             x: snapIndex,
             c: snap.clients
         });
+
+        //Process skips
+        if (snap.skipped) {
+            snapSkips.push(snapIndex);
+        }
 
         //Process times
         const time = new Date(snap.ts);
@@ -56,11 +61,10 @@ const drawHeatmap = (d3Container, perfData, options = {}) => {
             snapBuckets.push({
                 x: snapIndex,
                 y: bucketIndex,
-                freq
+                freq: freq
             })
         }
     }
-    // console.log(snapTimes)
 
 
     //Macro drawing stuff
@@ -79,6 +83,7 @@ const drawHeatmap = (d3Container, perfData, options = {}) => {
         .tickValues(snapTimes.map(t => t.x))
         .tickFormat((d, i) => snapTimes[i].t)
     svg.append('g')
+        .attr("id", "timeAxis")
         .attr("transform", translate(0, height - margin.bottom))
         .attr("id", "x-axis")
         .attr("class", "axis")
@@ -92,14 +97,16 @@ const drawHeatmap = (d3Container, perfData, options = {}) => {
     const tickBucketsAxis = d3.axisRight(tickBucketsScale)
         .tickFormat((d, i) => `${yLabels[i]}`)
     svg.append("g")
-        .attr("transform", translate(width - margin.right -3, 0))
-        .attr("id", "y-axis")
+        .attr("id", "tickBucketsAxis")
         .attr("class", "axis")
+        .attr("transform", translate(width - margin.right - 3, 0))
         .call(tickBucketsAxis);
 
 
     // Drawing the Heatmap
-    svg.selectAll('rect')
+    svg.append("g")
+        .attr("id", "heatmap")
+        .selectAll('rect')
         .data(snapBuckets)
         .enter()
         .append('rect')
@@ -113,22 +120,29 @@ const drawHeatmap = (d3Container, perfData, options = {}) => {
 
 
     // Y2 Axis - Player count
-    const y2Padding = Math.round(tickBucketsScale.bandwidth() / 2)
+    const y2Padding = Math.round(tickBucketsScale.bandwidth() / 2);
+    const maxClients = d3.max(snapClients.map(t => t.c));
     const clientsScale = d3.scaleLinear()
-        .domain([0, d3.max(snapClients.map(t => t.c))])
+        .domain([0, maxClients])
         .range([height - margin.bottom - y2Padding, margin.top + y2Padding]);
 
+    const clientsAxis = d3.axisLeft(clientsScale)
+        .tickFormat(t => t)
+        .tickValues((maxClients > 7)? null : d3.range(maxClients+1))
     svg.append("g")
-        .attr("transform", translate(margin.left - 1.5, 0))
-        .attr("id", "y2-axis")
+        .attr("id", "clientAxis")
         .attr("class", "axis")
-        .call(d3.axisLeft(clientsScale));
+        .attr("transform", translate(margin.left - 1.5, 0))
+        .call(clientsAxis);
 
     const clientsLine = d3.line()
         .defined(d => !isNaN(d.c))
         .x(d => timeScale(d.x) + 2) // very small offset
         .y(d => clientsScale(d.c))
-    svg.append("path")
+    const playerLineGroup = svg.append("g")
+        .attr("id", "clientsLine");
+
+    playerLineGroup.append("path")
         .datum(snapClients)
         .attr("fill", "none")
         .attr("stroke", "black")
@@ -136,7 +150,7 @@ const drawHeatmap = (d3Container, perfData, options = {}) => {
         .attr("stroke-linejoin", "round")
         .attr("stroke-linecap", "round")
         .attr("d", clientsLine);
-    svg.append("path")
+    playerLineGroup.append("path")
         .datum(snapClients)
         .attr("fill", "none")
         .attr("stroke", " rgb(204, 203, 203)")
@@ -145,6 +159,29 @@ const drawHeatmap = (d3Container, perfData, options = {}) => {
         .attr("stroke-linecap", "round")
         .attr("d", clientsLine);
 
+    // Horizontal line on the max client count
+    // playerLineGroup.append('line')
+    //     .style("stroke", "dodgerblue")  // dodgerblue maybe
+    //     .attr("stroke-dasharray", 6)
+    //     .attr("y1", clientsScale(maxClients))
+    //     .attr("y2", clientsScale(maxClients))
+    //     .attr("x1", margin.left) 
+    //     .attr("x2", width - margin.right)
+
+
+    // Skip lines
+    svg.append("g")
+        .attr("id", "skipLines")
+        .selectAll(".link")
+        .data(snapSkips)
+        .enter()
+        .append('line')
+        .style("stroke", "gold")  // dodgerblue maybe
+        .attr("stroke-dasharray", 6)
+        .attr("x1", (d) => timeScale(d))
+        .attr("x2", (d) => timeScale(d))
+        .attr("y1", height - margin.bottom) 
+        .attr("y2", margin.top);
 
     d3Container.innerHTML = '';
     d3Container.append(svg.node());
